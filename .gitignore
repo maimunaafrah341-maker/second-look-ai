@@ -1,0 +1,32 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Data and model artifacts
+ml/data/raw/*
+ml/data/processed/*
+!ml/data/raw/.gitkeep
+!ml/data/processed/.gitkeep
+*.pt
+*.pth
+*.safetensors
+*.onnx
+models/
+
+# Frontend
+node_modules/
+.next/
+dist/
+
+# Editor and OS
+.vscode/
+.DS_Store
+Thumbs.db
