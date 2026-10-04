@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "language": "en",
+  "sources": [
+    {
+      "id": "i4c-digital-arrest-2025",
+      "title": "Advisory on 'Digital Arrest' based cybercrime in India",
+      "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+      "url": "https://i4c.mha.gov.in/theme/resources/advisories/ADVISORYTAU-ADV-003DigitalArrest06.03.2025.pdf",
+      "document_type": "advisory",
+      "published": "2025-03-06",
+      "retrieved": "2026-10-04",
+      "language": "en",
+      "licence_note": "I4C website policies allow linking without prior permission and require permission to reproduce material. Only an original summary is stored here.",
+      "verification": "PDF downloaded from the official site and its text layer read. Title and date taken from the I4C advisories index. No restriction marking found in the text layer. Some characters in the text layer were garbled; claims that depended on garbled text were left out."
+    },
+    {
+      "id": "i4c-captcha-jobs-2025",
+      "title": "Advisory on 'Rise in Fake Captcha Filling Jobs' based cybercrime",
+      "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+      "url": "https://i4c.mha.gov.in/theme/resources/advisories/ADVISORY%20TAU-ADV-004_Captcha%20Filling%20Fraud_08.04.2025.pdf",
+      "document_type": "advisory",
+      "published": "2025-04-08",
+      "retrieved": "2026-10-04",
+      "language": "en",
+      "licence_note": "I4C website policies allow linking without prior permission and require permission to reproduce material. Only an original summary is stored here.",
+      "verification": "PDF downloaded from the official site and its text layer read. Title and date taken from the I4C advisories index and matched in the document (TAU/ADV/004, 8 April 2025). No restriction marking found in the text layer."
+    },
+    {
+      "id": "i4c-matrimonial-investment-2025",
+      "title": "Misuse of Matrimonial Platforms for Investment/Crypto Frauds",
+      "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+      "url": "https://i4c.mha.gov.in/theme/resources/advisories/ADVISORY-Matriminy%20Scam.pdf",
+      "document_type": "advisory",
+      "published": "2025-10-31",
+      "retrieved": "2026-10-04",
+      "language": "en",
+      "licence_note": "I4C website policies allow linking without prior permission and require permission to reproduce material. Only an original summary is stored here.",
+      "verification": "PDF downloaded from the official site and its text layer read. Title and date taken from the I4C advisories index and matched in the document (TAU/ADV/006, 31 October 2025). No restriction marking found in the text layer."
+    },
+    {
+      "id": "certin-avoid-phishing",
+      "title": "Avoid Phishing Attacks",
+      "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+      "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+      "document_type": "awareness leaflet",
+      "published": null,
+      "retrieved": "2026-10-04",
+      "language": "en",
+      "licence_note": "No copyright or linking policy was found on the Cyber Swachhta Kendra site, only an 'as is' disclaimer. Only an original summary is stored here.",
+      "verification": "PDF downloaded from the Cyber Swachhta Kendra site and its text layer read. Both pages carry the CERT-In logo, and the document is listed on the CERT-In security best practices page under this title. No restriction marking found in the text layer or page backgrounds. The document is undated."
+    },
+    {
+      "id": "i4c-home",
+      "title": "Indian Cybercrime Coordination Centre",
+      "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+      "url": "https://i4c.mha.gov.in/",
+      "document_type": "web page",
+      "published": null,
+      "retrieved": "2026-10-04",
+      "language": "en",
+      "licence_note": "I4C website policies allow linking without prior permission and require permission to reproduce material. Only an original summary is stored here.",
+      "verification": "Page fetched from the official site and the helpline banner text read in the page source."
+    }
+  ],
+  "passages": [
+    {
+      "id": "digital-arrest-how-it-works",
+      "source_id": "i4c-digital-arrest-2025",
+      "topic": "Digital arrest scam: how it works",
+      "section": "Modus operandi",
+      "summary": "Callers pose as police, CBI, narcotics, RBI, telecom or enforcement officials, often from spoofed numbers. They accuse the person of a crime, such as a parcel containing drugs, misuse of their Aadhaar card or mobile number, or money laundering. They keep the person on a video call and demand money to settle the matter.",
+      "match_groups": [
+        ["arrest", "arrested", "laundering", "drugs", "aadhaar"],
+        ["police", "cbi", "narcotics", "enforcement", "officer", "rbi", "telecom"]
+      ],
+      "verification_status": "needs_review",
+      "verification_note": "Checked against the text layer. Courier company names were garbled and are not stated. Held back until a person has read this summary beside the original document."
+    },
+    {
+      "id": "digital-arrest-precautions",
+      "source_id": "i4c-digital-arrest-2025",
+      "topic": "Digital arrest scam: precautions",
+      "section": "Precautions",
+      "summary": "The advisory says Indian law has no concept of a digital arrest and that real law enforcement does not arrest people digitally. It advises verifying the caller independently, for example through the nearest police station, and speaking to family or friends before sending money. It also advises not sharing personal or financial details without verifying the request.",
+      "match_groups": [
+        ["arrest", "arrested", "laundering", "drugs", "aadhaar"],
+        ["police", "cbi", "narcotics", "enforcement", "officer", "rbi", "telecom"]
+      ],
+      "verification_status": "needs_review",
+      "verification_note": "Checked against the text layer. The helpline number in this document was garbled, so no number is stated here. Held back until a person has read this summary beside the original document."
+    },
+    {
+      "id": "captcha-jobs-how-it-works",
+      "source_id": "i4c-captcha-jobs-2025",
+      "topic": "Fake CAPTCHA-filling jobs: how it works",
+      "section": "Modus operandi",
+      "summary": "Fraudsters advertise well-paid CAPTCHA-filling work on social media, job portals and messaging apps. Applicants are asked to pay a registration, training or software fee, then given large tasks on a fake platform. Payouts are later refused, and further payments are demanded as taxes, charges or upgrades.",
+      "match_groups": [
+        ["captcha", "job", "task", "earn", "earning", "income"],
+        ["fee", "registration", "charge", "deposit", "withdraw", "withdrawal", "payout", "commission", "upfront"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "captcha-jobs-precautions",
+      "source_id": "i4c-captcha-jobs-2025",
+      "topic": "Fake CAPTCHA-filling jobs: warning signs and precautions",
+      "section": "Precautions",
+      "summary": "The advisory lists four warning signs: upfront payment, unrealistic earnings, delayed or denied withdrawals, and heavy emphasis on referrals. It advises researching the platform, not sharing sensitive personal or financial information, and reporting fraud immediately by calling 1930 or through the national cybercrime reporting portal.",
+      "match_groups": [
+        ["captcha", "job", "task", "earn", "earning", "income"],
+        ["fee", "registration", "charge", "deposit", "withdraw", "withdrawal", "payout", "commission", "upfront"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "matrimonial-investment-how-it-works",
+      "source_id": "i4c-matrimonial-investment-2025",
+      "topic": "Matrimonial-platform investment fraud: how it works",
+      "section": "Modus operandi",
+      "summary": "Fraudsters create fake profiles on matrimonial and dating platforms, often with stolen photographs and invented professions. They build emotional trust over calls and chats. They then create urgent or emotional situations to obtain money, or push investment and cryptocurrency schemes that promise high returns.",
+      "match_groups": [
+        ["matrimonial", "matrimony", "marriage", "dating", "proposal", "profile"],
+        ["invest", "investment", "investing", "crypto", "cryptocurrency", "returns"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "matrimonial-investment-precautions",
+      "source_id": "i4c-matrimonial-investment-2025",
+      "topic": "Matrimonial-platform investment fraud: precautions",
+      "section": "Precautions",
+      "summary": "The advisory recommends verifying the person's identity, including a reverse image search of their photographs. It advises not sharing private details, photographs or financial information with someone you have not met in person. It also advises not transferring money or investing on the word of an unverified online contact, especially where returns look unrealistic.",
+      "match_groups": [
+        ["matrimonial", "matrimony", "marriage", "dating", "proposal", "profile"],
+        ["invest", "investment", "investing", "crypto", "cryptocurrency", "returns"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "phishing-recognise",
+      "source_id": "certin-avoid-phishing",
+      "topic": "Phishing: how to recognise it",
+      "section": "How does a phishing email message look like?",
+      "summary": "The leaflet advises treating any email request for financial or personal information with suspicion, especially an urgent one. It describes common signs: threats that an account will be closed, web addresses that closely imitate a known organisation, and spelling or grammar mistakes.",
+      "match_groups": [
+        ["link", "password", "pin", "otp", "card", "cvv", "details"],
+        ["urgent", "urgently", "blocked", "suspended", "deactivated", "kyc", "expire", "expired"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "phishing-donts",
+      "source_id": "certin-avoid-phishing",
+      "topic": "Phishing: what not to do",
+      "section": "Don'ts",
+      "summary": "The leaflet advises against replying to messages that ask for personal or financial information, and against clicking links in unexpected messages. It advises never responding to phone calls that ask for bank details. It says an SMS asking you to confirm account information, or to reveal personal information to receive a prize, is most likely phishing.",
+      "match_groups": [
+        ["link", "click", "clicking", "otp", "pin", "password", "cvv", "card", "details"],
+        ["urgent", "urgently", "blocked", "suspended", "deactivated", "kyc", "expire", "expired", "prize", "lottery", "winner", "reward"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "phishing-if-you-responded",
+      "source_id": "certin-avoid-phishing",
+      "topic": "Phishing: if you have already responded",
+      "section": "What should I do if I think I've responded to a phishing scam?",
+      "summary": "The leaflet advises changing the passwords or PINs of accounts that may be affected. It advises contacting the bank or merchant directly, without using the link in the suspicious message, and reviewing bank and card statements for transactions you did not make.",
+      "match_groups": [
+        ["clicked", "entered", "shared", "gave", "given", "responded", "replied"],
+        ["link", "password", "pin", "otp", "cvv", "card", "details"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the text layer."
+    },
+    {
+      "id": "report-helpline-1930",
+      "source_id": "i4c-home",
+      "topic": "Reporting cybercrime",
+      "section": "Home page banner",
+      "summary": "The I4C website tells people to report cybercrime by calling the helpline 1930.",
+      "match_groups": [
+        ["fraud", "cybercrime", "scam", "scammed", "cheated", "duped"],
+        ["report", "complaint", "complain", "helpline", "lost", "1930"]
+      ],
+      "verification_status": "verified",
+      "verification_note": "Checked against the page source."
+    }
+  ]
+}
