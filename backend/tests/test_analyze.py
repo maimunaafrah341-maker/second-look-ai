@@ -1,6 +1,10 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
+import app.main as main_module
+from app.classifier import Classifier
 from app.guidance import load_corpus
 from app.main import MAX_MESSAGE_LENGTH, app
 
@@ -16,7 +20,7 @@ def test_analyze_returns_structured_findings():
     assert response.status_code == 200
     body = response.json()
     # No verdict or probability fields: rule-based findings and retrieved guidance only.
-    assert set(body) == {"findings", "notice", "guidance"}
+    assert set(body) == {"findings", "notice", "guidance", "classifier"}
     assert [finding["category"] for finding in body["findings"]] == [
         "urgency_pressure",
         "credential_request",
@@ -229,9 +233,167 @@ def test_response_never_carries_a_verdict_or_safety_claim(message):
     response = client.post("/analyze", json={"message": message})
     body = response.json()
 
-    assert set(body) == {"findings", "notice", "guidance"}
+    assert set(body) == {"findings", "notice", "guidance", "classifier"}
     assert set(body["guidance"]) == {"matches", "notice"}
     assert NOT_SAFE_FINDINGS in body["notice"]
     text = response.text.lower().replace(NOT_SAFE_GUIDANCE, "")
     for claim in ("is safe", "is legitimate", "is not a scam", "no risk", "verdict", "probability"):
         assert claim not in text
+
+
+# --- Auxiliary classifier ------------------------------------------------------------
+
+
+class StubPipeline:
+    """Returns a fixed score, so tests control the classifier label exactly."""
+
+    classes_ = [0, 1]
+
+    def __init__(self, score):
+        self.score = score
+
+    def predict_proba(self, texts):
+        return [[1 - self.score, self.score] for _ in texts]
+
+
+def use_classifier(monkeypatch, score=None):
+    """Swap in a stub classifier with a fixed score, or an unavailable one when score is None."""
+    if score is None:
+        stub = Classifier()
+    else:
+        metadata = {"model_name": "stub", "model_sha256": "0" * 64, "threshold": 0.5}
+        stub = Classifier(StubPipeline(score), metadata, positive_column=1)
+    monkeypatch.setattr(main_module, "classifier", stub)
+
+
+def test_classifier_section_when_ok(monkeypatch):
+    use_classifier(monkeypatch, score=0.9)
+
+    section = analyze_message("Free entry! Call now to claim your reward")["classifier"]
+
+    assert set(section) == {"status", "label", "model", "notice"}
+    assert section["status"] == "ok"
+    assert section["label"] == "spam_like"
+    assert set(section["model"]) == {"name", "training_data", "model_sha256"}
+    assert "UCI SMS Spam Collection" in section["model"]["training_data"]
+    assert "cannot tell whether this message is fraudulent" in section["notice"]
+    assert "does not mean the message is safe" in section["notice"]
+
+
+def test_classifier_section_when_unavailable(monkeypatch):
+    use_classifier(monkeypatch, score=None)
+
+    body = analyze_message("URGENT: Share your OTP to keep your account active.")
+
+    assert body["classifier"] == {
+        "status": "unavailable",
+        "label": None,
+        "model": None,
+        "notice": main_module.CLASSIFIER_UNAVAILABLE_NOTICE,
+    }
+    # The rest of the analysis still works.
+    assert body["findings"]
+    assert body["guidance"]["matches"]
+
+
+def test_classifier_section_when_not_applicable(monkeypatch):
+    use_classifier(monkeypatch, score=0.9)
+
+    body = analyze_message("आपका खाता बंद हो जाएगा। तुरंत अपना ओटीपी बताएं।")
+
+    assert body["classifier"]["status"] == "not_applicable"
+    assert body["classifier"]["label"] is None
+    assert "not written in the Latin alphabet" in body["classifier"]["notice"]
+    # The Hindi warning-sign rules still run.
+    assert body["findings"]
+
+
+def test_real_classifier_is_loaded_at_startup():
+    body = analyze_message("Hi, are we still meeting for lunch at 1 pm tomorrow?")
+
+    assert body["classifier"]["status"] == "ok"
+    assert body["classifier"]["model"]["name"] == "char_tfidf_logistic_regression"
+
+
+@pytest.mark.parametrize("score", [0.0, 0.3, 0.9])
+def test_classifier_never_exposes_a_score(monkeypatch, score):
+    use_classifier(monkeypatch, score=score)
+
+    response = client.post("/analyze", json={"message": "Update KYC by clicking http://bit.ly/x"})
+
+    section = response.json()["classifier"]
+    for key in ("score", "probability", "confidence", "similarity", "risk"):
+        assert key not in section
+    assert str(score) not in str(section)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        # Rules fire (urgency, credential request); guidance matches.
+        "URGENT: Share your OTP to keep your account active.",
+        # No rule fires; guidance matches.
+        "I met someone on a matrimony site and he wants me to invest in crypto for high returns",
+        # Rules fire; no guidance.
+        "Your electricity will be disconnected tonight at 9.30 pm. Contact officer.",
+    ],
+)
+def test_classifier_label_never_changes_findings_or_guidance(monkeypatch, message):
+    use_classifier(monkeypatch, score=0.0)
+    low = analyze_message(message)
+    use_classifier(monkeypatch, score=1.0)
+    high = analyze_message(message)
+    use_classifier(monkeypatch, score=None)
+    unavailable = analyze_message(message)
+
+    assert low["classifier"]["label"] == "not_spam_like"
+    assert high["classifier"]["label"] == "spam_like"
+    for other in (high, unavailable):
+        assert other["findings"] == low["findings"]
+        assert other["notice"] == low["notice"]
+        assert other["guidance"] == low["guidance"]
+
+
+def test_classifier_and_warning_signs_can_disagree(monkeypatch):
+    use_classifier(monkeypatch, score=0.0)
+    body = analyze_message("URGENT: Share your OTP to keep your account active.")
+    assert body["findings"] and body["classifier"]["label"] == "not_spam_like"
+
+    use_classifier(monkeypatch, score=1.0)
+    body = analyze_message("Hi, are we still meeting for lunch at 1 pm tomorrow?")
+    assert body["findings"] == [] and body["classifier"]["label"] == "spam_like"
+    assert NOT_SAFE_FINDINGS in body["notice"]
+
+
+def test_classifier_and_guidance_can_disagree(monkeypatch):
+    use_classifier(monkeypatch, score=0.0)
+
+    body = analyze_message(
+        "I met someone on a matrimony site and he wants me to invest in crypto for high returns"
+    )
+
+    assert body["guidance"]["matches"]
+    assert body["classifier"]["label"] == "not_spam_like"
+    assert "does not mean the message is safe" in body["classifier"]["notice"]
+
+
+def test_genuine_bank_alert_is_rated_spam_like_by_the_real_model():
+    # Documented false positive of the UCI-trained model on a genuine Indian bank alert.
+    # The response must still carry no verdict, and the rules find nothing.
+    body = analyze_message("Rs 2,000 debited from A/c XX1234 on 03-Oct. Not you? Call your bank.")
+
+    assert body["classifier"]["status"] == "ok"
+    assert body["classifier"]["label"] == "spam_like"
+    assert body["findings"] == []
+    assert "Genuine bank, OTP and delivery messages are often rated spam-like" in body["classifier"]["notice"]
+
+
+def test_analyze_does_not_log_message_text(monkeypatch, caplog):
+    caplog.set_level(logging.DEBUG)
+
+    for score in (None, 0.0, 1.0):
+        use_classifier(monkeypatch, score=score)
+        client.post("/analyze", json={"message": "SECRET-MARKER URGENT share OTP http://bit.ly/x"})
+    client.post("/analyze", json={"message": "SECRET-MARKER" + "x" * MAX_MESSAGE_LENGTH})
+
+    assert "SECRET-MARKER" not in caplog.text

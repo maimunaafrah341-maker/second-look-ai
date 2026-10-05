@@ -20,6 +20,9 @@ ml/data/processed/*
 *.safetensors
 *.onnx
 models/
+# Only the deployed classifier is committed; any other model file stays local.
+*.joblib
+!backend/app/data/classifier/model.joblib
 
 # Frontend
 node_modules/
