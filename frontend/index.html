@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Second Look helps you understand suspicious messages by highlighting warning signs, connecting them to official guidance, and showing safer next steps." />
+    <meta name="theme-color" content="#f4f7f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#071019" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Second Look</title>
+    <script>
+      // Apply the saved theme before the page paints, so there is no flash of the wrong theme.
+      (function () {
+        var preference = "system";
+        try {
+          var saved = window.localStorage.getItem("second-look-theme");
+          if (saved === "light" || saved === "dark" || saved === "system") preference = saved;
+        } catch (error) {}
+        var dark = preference === "dark" ||
+          (preference === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

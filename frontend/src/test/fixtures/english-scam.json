@@ -1,0 +1,87 @@
+{
+  "message": "URGENT: Your SBI account will be blocked today. Update your KYC at http://bit.ly/kyc-update and share the OTP you receive.",
+  "response": {
+    "findings": [
+      {
+        "category": "urgency_pressure",
+        "explanation": "The message uses urgency, a threat, or a deadline. Pressure to act quickly is a common tactic to stop people from checking whether a request is genuine.",
+        "evidence": "URGENT"
+      },
+      {
+        "category": "credential_request",
+        "explanation": "The message asks for an OTP, PIN, password, or banking details. These are meant to be kept secret; sharing them can give someone else access to your account.",
+        "evidence": "update and share the OTP"
+      },
+      {
+        "category": "link",
+        "explanation": "The message contains a link. Do not open it unless you have confirmed the sender through an official channel. This link uses a link-shortening service, which hides the real destination; uses unencrypted http.",
+        "evidence": "http://bit.ly/kyc-update"
+      }
+    ],
+    "notice": "These are rule-based indicators only. They cannot determine whether a message is fraudulent: a message with no indicators may still be a scam, and a message with indicators may be legitimate. Verify through an official channel before acting.",
+    "guidance": {
+      "matches": [
+        {
+          "topic": "Phishing: what not to do",
+          "summary": "The leaflet advises against replying to messages that ask for personal or financial information, and against clicking links in unexpected messages. It advises never responding to phone calls that ask for bank details. It says an SMS asking you to confirm account information, or to reveal personal information to receive a prize, is most likely phishing.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Avoid Phishing Attacks",
+            "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+            "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "Don'ts"
+          },
+          "matched_terms": [
+            "account",
+            "blocked",
+            "kyc",
+            "link",
+            "otp",
+            "receive",
+            "urgent"
+          ]
+        },
+        {
+          "topic": "Phishing: how to recognise it",
+          "summary": "The leaflet advises treating any email request for financial or personal information with suspicion, especially an urgent one. It describes common signs: threats that an account will be closed, web addresses that closely imitate a known organisation, and spelling or grammar mistakes.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Avoid Phishing Attacks",
+            "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+            "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "How does a phishing email message look like?"
+          },
+          "matched_terms": [
+            "account",
+            "blocked",
+            "kyc",
+            "link",
+            "otp",
+            "urgent"
+          ]
+        }
+      ],
+      "notice": "These entries were retrieved by keyword similarity from a small, English-only collection of official guidance. They are not a judgement about this message, and the publishers have not reviewed or endorsed this service. Read the linked source."
+    },
+    "classifier": {
+      "status": "ok",
+      "label": "spam_like",
+      "model": {
+        "name": "char_tfidf_logistic_regression",
+        "training_data": "UCI SMS Spam Collection: English SMS from the UK and Singapore, around 2011",
+        "model_sha256": "bd1079ed0b0ac41ca0dead4a1c113e963f40a160301f3bd543558192b2f62561"
+      },
+      "notice": "This auxiliary signal compares the message with English SMS spam from a 2011 UK and Singapore dataset. It was not trained on Indian scams and cannot tell whether this message is fraudulent. Genuine bank, OTP and delivery messages are often rated spam-like, and many scams are not. A 'not spam-like' label does not mean the message is safe. This signal does not change the warning signs or the official guidance."
+    },
+    "language": {
+      "detected": "en",
+      "method": "script_and_keyword_estimate",
+      "coverage": "supported",
+      "notice": "Estimated language: English. All of Second Look's checks are designed for English. This is an automatic estimate and may be wrong."
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "message": "Hi, are we still meeting for lunch at 1 pm tomorrow?",
+  "response": {
+    "findings": [],
+    "notice": "These are rule-based indicators only. They cannot determine whether a message is fraudulent: a message with no indicators may still be a scam, and a message with indicators may be legitimate. Verify through an official channel before acting.",
+    "guidance": {
+      "matches": [],
+      "notice": "No matching official guidance was found. The collection is small and English-only, so this does not mean the message is safe."
+    },
+    "classifier": {
+      "status": "ok",
+      "label": "not_spam_like",
+      "model": {
+        "name": "char_tfidf_logistic_regression",
+        "training_data": "UCI SMS Spam Collection: English SMS from the UK and Singapore, around 2011",
+        "model_sha256": "bd1079ed0b0ac41ca0dead4a1c113e963f40a160301f3bd543558192b2f62561"
+      },
+      "notice": "This auxiliary signal compares the message with English SMS spam from a 2011 UK and Singapore dataset. It was not trained on Indian scams and cannot tell whether this message is fraudulent. Genuine bank, OTP and delivery messages are often rated spam-like, and many scams are not. A 'not spam-like' label does not mean the message is safe. This signal does not change the warning signs or the official guidance."
+    },
+    "language": {
+      "detected": "en",
+      "method": "script_and_keyword_estimate",
+      "coverage": "supported",
+      "notice": "Estimated language: English. All of Second Look's checks are designed for English. This is an automatic estimate and may be wrong."
+    }
+  }
+}

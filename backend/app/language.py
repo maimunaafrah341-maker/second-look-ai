@@ -71,12 +71,15 @@ COVERAGE = {
 NOTICES = {
     "en": f"Estimated language: English. All of Second Look's checks are designed for English. {_CAVEAT}",
     "hi": (
-        "Estimated language: Hindi (Devanagari). Only a small set of Hindi warning phrases is "
-        f"checked so far, and official guidance is matched in English only. {_LINKS_AND_AMOUNTS} {_CAVEAT}"
+        "Estimated language: Hindi (Devanagari). A limited list of common Hindi scam phrases is "
+        "checked, and some Hindi words are used to find the official guidance, which is in English. "
+        f"Other wording may be missed. {_LINKS_AND_AMOUNTS} {_CAVEAT}"
     ),
     "hi-Latn": (
-        "Estimated language: Hindi written in English letters. Romanised Hindi phrases are not "
-        f"analysed yet; only the English words in the message are. {_LINKS_AND_AMOUNTS} {_CAVEAT}"
+        "Estimated language: Hindi written in English letters. A limited list of common romanised "
+        "Hindi scam phrases and spellings is checked, and some romanised Hindi words are used to "
+        "find the official guidance, which is in English. Other wording or spellings may be missed. "
+        f"{_LINKS_AND_AMOUNTS} {_CAVEAT}"
     ),
     "mixed": (
         "Estimated language: a mix of languages or scripts. English parts are checked fully; "
