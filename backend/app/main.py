@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.classifier import NOT_APPLICABLE, UNAVAILABLE, Classifier
 from app.guidance import GuidanceIndex
+from app.language import estimate_language
 from app.warning_signs import Finding, detect_warning_signs
 
 MAX_MESSAGE_LENGTH = 5000
@@ -34,9 +35,9 @@ CLASSIFIER_NOTICE = (
     "is safe. This signal does not change the warning signs or the official guidance."
 )
 CLASSIFIER_NOT_APPLICABLE_NOTICE = (
-    "The auxiliary classifier was not run because most of this message is not written in "
-    "the Latin alphabet, and the model was trained only on English SMS. This does not mean "
-    "the message is safe."
+    "The auxiliary classifier was not run because this message does not appear to be mainly "
+    "in English, and the model was trained only on English SMS. This does not mean the "
+    "message is safe."
 )
 CLASSIFIER_UNAVAILABLE_NOTICE = (
     "The auxiliary classifier is not available. The warning signs and official guidance are "
@@ -98,11 +99,19 @@ class ClassifierSection(BaseModel):
     notice: str
 
 
+class LanguageSection(BaseModel):
+    detected: Literal["en", "hi", "hi-Latn", "te", "ur", "bn", "mixed", "unknown"]
+    method: Literal["script_and_keyword_estimate"]
+    coverage: Literal["supported", "partial", "unsupported"]
+    notice: str
+
+
 class AnalyzeResponse(BaseModel):
     findings: list[Finding]
     notice: str
     guidance: Guidance
     classifier: ClassifierSection
+    language: LanguageSection
 
 
 @app.exception_handler(RequestValidationError)
@@ -136,8 +145,17 @@ def retrieve_guidance(message: str) -> Guidance:
     return Guidance(matches=matches, notice=GUIDANCE_NOTICE if matches else NO_GUIDANCE_NOTICE)
 
 
-def run_classifier(message: str) -> ClassifierSection:
-    result = classifier.classify(message)
+def estimate_message_language(message: str) -> LanguageSection:
+    # The estimate decides only whether the English-only classifier runs. It does not
+    # change the warning-sign rules or the guidance.
+    estimate = estimate_language(message)
+    return LanguageSection(
+        detected=estimate.detected, method=estimate.method, coverage=estimate.coverage, notice=estimate.notice
+    )
+
+
+def run_classifier(message: str, language: str) -> ClassifierSection:
+    result = classifier.classify(message, language)
     notice = {
         UNAVAILABLE: CLASSIFIER_UNAVAILABLE_NOTICE,
         NOT_APPLICABLE: CLASSIFIER_NOT_APPLICABLE_NOTICE,
@@ -152,9 +170,11 @@ def health() -> dict[str, str]:
 
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+    language = estimate_message_language(request.message)
     return AnalyzeResponse(
         findings=detect_warning_signs(request.message),
         notice=NOTICE,
         guidance=retrieve_guidance(request.message),
-        classifier=run_classifier(request.message),
+        classifier=run_classifier(request.message, language.detected),
+        language=language,
     )

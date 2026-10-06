@@ -6,6 +6,10 @@ warning-sign rules, the classifier, and any language-model provider.
 
 Every title, publisher, and URL returned comes from the validated corpus file.
 A match means "this guidance uses similar words", not "this message is fraudulent".
+
+Hindi and romanised-Hindi messages reach the same English passages through a small
+term map (data/term_map.json). The map only adds existing corpus terms to the query.
+It is not a translation, and the user's message is never changed.
 """
 
 import json
@@ -17,7 +21,10 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from app.language import ROMAN_HINDI_CUES
+
 DEFAULT_CORPUS = Path(__file__).resolve().parent / "data" / "guidance.json"
+DEFAULT_TERM_MAP = Path(__file__).resolve().parent / "data" / "term_map.json"
 
 # Only sources whose site policy allows linking, or states no restriction.
 ALLOWED_HOSTS = frozenset({"i4c.mha.gov.in", "www.csk.gov.in"})
@@ -208,6 +215,85 @@ def load_corpus(path: Path = DEFAULT_CORPUS) -> tuple[dict[str, Source], list[Pa
     return sources, passages
 
 
+# Words in Devanagari (letters and vowel signs, not the danda) or in Latin letters.
+_HINDI_OR_LATIN_WORD = re.compile(r"[ऀ-ॣॱ-ॿ]+|[a-z0-9]+")
+_SENTENCE = re.compile(r"[^.!?।\n]+")
+# Hindi negation usually follows the object ("OTP किसी को न बताएं", "OTP share mat
+# karo"), so the English rule of ignoring text after "never" does not work. A sentence
+# with a Hindi negation word is left out of matching entirely: a missed match is safer
+# than showing a phishing warning for safety advice.
+_DEVANAGARI_NEGATION = frozenset({"न", "ना", "नहीं", "मत"})
+_ROMAN_NEGATION = frozenset({"nahi", "nahin", "nhi"})
+# "na" and "mat" are also English or abbreviations, so they count only next to other
+# romanised-Hindi words.
+_ROMAN_NEGATION_IF_HINDI = frozenset({"na", "naa", "mat"})
+
+
+def _hindi_words(text: str) -> list[str]:
+    return _HINDI_OR_LATIN_WORD.findall(text.lower())
+
+
+def _is_hindi_advice(sentence: str) -> bool:
+    words = set(_hindi_words(sentence))
+    if words & (_DEVANAGARI_NEGATION | _ROMAN_NEGATION):
+        return True
+    return bool(words & _ROMAN_NEGATION_IF_HINDI) and bool(words & ROMAN_HINDI_CUES)
+
+
+def _drop_hindi_advice(text: str) -> str:
+    # Only advice sentences are blanked; everything else, including links, is kept as is.
+    return _SENTENCE.sub(lambda sentence: " " if _is_hindi_advice(sentence.group()) else sentence.group(), text)
+
+
+class TermMap:
+    """Maps Hindi and romanised-Hindi words and short phrases to existing corpus terms."""
+
+    def __init__(self, phrases: dict[tuple[str, ...], str]):
+        self._phrases = phrases
+        self._longest = max((len(phrase) for phrase in phrases), default=0)
+
+    @classmethod
+    def from_file(cls, path: Path, vocabulary: set[str]) -> "TermMap":
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except OSError as error:
+            raise CorpusError(f"Cannot read term map: {error}") from None
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
+            raise CorpusError(f"Term map is not valid JSON: {error}") from None
+        concepts = data.get("concepts") if isinstance(data, dict) else None
+        if not isinstance(concepts, dict) or not concepts:
+            raise CorpusError("Term map must have a non-empty 'concepts' object.")
+
+        phrases: dict[tuple[str, ...], str] = {}
+        for concept, terms in concepts.items():
+            if tokenize(concept) != [concept] or concept not in vocabulary:
+                raise CorpusError(f"Term map concept {concept!r} is not a retrieval term in the corpus.")
+            if not isinstance(terms, list) or not terms:
+                raise CorpusError(f"Term map concept {concept!r} needs a non-empty list of terms.")
+            for term in terms:
+                words = tuple(_hindi_words(term)) if isinstance(term, str) else ()
+                if not words or "".join(words) != "".join(str(term).lower().split()):
+                    raise CorpusError(f"Term map entry {term!r} for {concept!r} is not a plain word or phrase.")
+                # A single Latin word that is already a corpus term would change English results.
+                if len(words) == 1 and words[0].isascii() and words[0] in vocabulary:
+                    raise CorpusError(f"Term map entry {term!r} is already an English retrieval term.")
+                if words in phrases:
+                    raise CorpusError(f"Term map entry {term!r} appears more than once.")
+                phrases[words] = concept
+        return cls(phrases)
+
+    def expand(self, text: str) -> list[str]:
+        """Return the corpus terms for every mapped word or phrase found in the text."""
+        words = _hindi_words(text)
+        found = []
+        for start in range(len(words)):
+            for length in range(1, min(self._longest, len(words) - start) + 1):
+                concept = self._phrases.get(tuple(words[start : start + length]))
+                if concept:
+                    found.append(concept)
+        return found
+
+
 class GuidanceIndex:
     """TF-IDF index over the verified passages of a corpus."""
 
@@ -231,10 +317,22 @@ class GuidanceIndex:
             for term, frequency in document_frequency.items()
         }
         self._vectors = [self._weigh(document) for document in documents]
+        self._term_map = TermMap({})
+
+    @property
+    def vocabulary(self) -> set[str]:
+        return set(self._idf)
+
+    def use_term_map(self, term_map: TermMap) -> "GuidanceIndex":
+        self._term_map = term_map
+        return self
 
     @classmethod
-    def from_file(cls, path: Path = DEFAULT_CORPUS) -> "GuidanceIndex":
-        return cls(*load_corpus(path))
+    def from_file(cls, path: Path = DEFAULT_CORPUS, term_map_path: Path | None = DEFAULT_TERM_MAP) -> "GuidanceIndex":
+        index = cls(*load_corpus(path))
+        if term_map_path is not None:
+            index.use_term_map(TermMap.from_file(term_map_path, index.vocabulary))
+        return index
 
     def _weigh(self, counts: Counter) -> dict[str, float]:
         weights = {
@@ -247,8 +345,8 @@ class GuidanceIndex:
 
     def search(self, text: str, limit: int = MAX_MATCHES) -> list[Match]:
         """Return the most similar passages, or an empty list when nothing is similar enough."""
-        text = _ADVICE.sub(" ", text)
-        tokens = tokenize(text)
+        text = _drop_hindi_advice(_ADVICE.sub(" ", text))
+        tokens = tokenize(text) + self._term_map.expand(text)
         if _LINK_IN_TEXT.search(text):
             tokens.append(_LINK_TERM)  # a web address in the message counts as the word "link"
         query = self._weigh(Counter(tokens))

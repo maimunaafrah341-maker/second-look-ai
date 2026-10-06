@@ -195,8 +195,8 @@ def test_search_makes_no_network_calls(index, monkeypatch):
         "Here are the photos: https://example.com/album",
         # Outside the corpus: no guidance on this topic has been verified yet.
         "Your electricity will be disconnected tonight at 9.30 pm. Contact officer 98xxxxxx10",
-        # Hindi: retrieval is English-only.
-        "आपका खाता बंद हो जाएगा। तुरंत अपना ओटीपी बताएं।",
+        # Telugu: no Telugu terms are mapped, so nothing is retrieved.
+        "మీ బ్యాంక్ ఖాతా బ్లాక్ చేయబడుతుంది, వెంటనే OTP చెప్పండి",
     ],
 )
 def test_unrelated_or_unsupported_messages_return_nothing(index, message):

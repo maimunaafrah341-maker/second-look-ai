@@ -20,7 +20,7 @@ def test_analyze_returns_structured_findings():
     assert response.status_code == 200
     body = response.json()
     # No verdict or probability fields: rule-based findings and retrieved guidance only.
-    assert set(body) == {"findings", "notice", "guidance", "classifier"}
+    assert set(body) == {"findings", "notice", "guidance", "classifier", "language"}
     assert [finding["category"] for finding in body["findings"]] == [
         "urgency_pressure",
         "credential_request",
@@ -123,7 +123,7 @@ def test_analyze_guidance_sources_all_come_from_the_corpus():
     "message",
     [
         "Hi, are we still meeting for lunch at 1 pm tomorrow?",
-        "आपका खाता बंद हो जाएगा। तुरंत अपना ओटीपी बताएं।",
+        "మీ బ్యాంక్ ఖాతా బ్లాక్ చేయబడుతుంది, వెంటనే OTP చెప్పండి",
     ],
 )
 def test_analyze_without_matching_guidance_says_so_without_implying_safety(message):
@@ -233,7 +233,7 @@ def test_response_never_carries_a_verdict_or_safety_claim(message):
     response = client.post("/analyze", json={"message": message})
     body = response.json()
 
-    assert set(body) == {"findings", "notice", "guidance", "classifier"}
+    assert set(body) == {"findings", "notice", "guidance", "classifier", "language"}
     assert set(body["guidance"]) == {"matches", "notice"}
     assert NOT_SAFE_FINDINGS in body["notice"]
     text = response.text.lower().replace(NOT_SAFE_GUIDANCE, "")
@@ -303,7 +303,7 @@ def test_classifier_section_when_not_applicable(monkeypatch):
 
     assert body["classifier"]["status"] == "not_applicable"
     assert body["classifier"]["label"] is None
-    assert "not written in the Latin alphabet" in body["classifier"]["notice"]
+    assert "does not appear to be mainly in English" in body["classifier"]["notice"]
     # The Hindi warning-sign rules still run.
     assert body["findings"]
 

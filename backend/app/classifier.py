@@ -35,10 +35,12 @@ NOT_APPLICABLE = "not_applicable"
 SPAM_LIKE = "spam_like"
 NOT_SPAM_LIKE = "not_spam_like"
 
-# The classifier is skipped only when a message clearly is not written in the Latin
-# alphabet. Romanised Hindi and other Latin-script text is still classified.
+# The model is not run on a message that clearly is not written in the Latin alphabet,
+# or whose estimated language (app/language.py) is not English. "mixed" is included:
+# the estimate gives "en" only when it can tell the message is mainly English.
 MIN_LETTERS_FOR_SCRIPT_CHECK = 4
 MIN_LATIN_SHARE = 0.5
+NOT_ENGLISH_LANGUAGES = frozenset({"hi", "hi-Latn", "te", "ur", "bn", "mixed"})
 
 
 class ModelUnavailable(Exception):
@@ -155,10 +157,15 @@ class Classifier:
             "model_sha256": self._metadata["model_sha256"],
         }
 
-    def classify(self, text: str) -> ClassifierResult:
+    def classify(self, text: str, language: str | None = None) -> ClassifierResult:
+        """Label the message, or say why the model was not run.
+
+        `language` is the estimated language tag. "en", "unknown", or None leave the
+        decision to the script check alone, which is how English is classified.
+        """
         if not self.available:
             return ClassifierResult(UNAVAILABLE, None, None)
-        if mostly_non_latin(text):
+        if language in NOT_ENGLISH_LANGUAGES or mostly_non_latin(text):
             return ClassifierResult(NOT_APPLICABLE, None, self.model_info())
         try:
             score = float(self._pipeline.predict_proba([text])[0][self._positive_column])

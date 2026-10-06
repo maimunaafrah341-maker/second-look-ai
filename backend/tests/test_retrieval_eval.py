@@ -11,7 +11,10 @@ from app.guidance import GuidanceIndex, load_corpus
 from evaluation.evaluate_retrieval import CATEGORIES, evaluate, load_items
 
 RECORDED = {
-    "development": {"tp": 12, "fp": 0, "fn": 0, "tn": 23},
+    # dev-19 is a Hindi scam labelled "expect nothing" when retrieval was English-only.
+    # With the Hindi term map it now retrieves phishing guidance, so it counts as a false
+    # match against its original label. The label is left unchanged.
+    "development": {"tp": 12, "fp": 1, "fn": 0, "tn": 22},
     "check": {"tp": 7, "fp": 3, "fn": 4, "tn": 13},
 }
 

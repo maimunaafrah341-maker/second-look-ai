@@ -50,6 +50,30 @@ def _compile(*patterns: str) -> list[re.Pattern[str]]:
 # "Same sentence" window used between two related words.
 _GAP = r"[^.!?।\n]"
 
+# --- Hindi building blocks -----------------------------------------------------------
+# Devanagari has no reliable \b (vowel signs are not word characters), so word edges
+# are written as "no Devanagari letter or sign on this side". The danda (।, ॥) and
+# Devanagari digits are left out of the range so they count as word edges.
+_DEV = "ऀ-ॣॱ-ॿ"
+_D_START = rf"(?<![{_DEV}])"
+_D_END = rf"(?![{_DEV}])"
+
+# Devanagari verb forms: polite, informal, and "do it for me" forms, with common
+# spelling variants (एं / एँ / यें, ए / ये).
+_D_TELL = rf"बता(?:एं|एँ|यें|इए|इये|ओ|\s*(?:दें|दो|दीजिए|दीजिये)){_D_END}"
+_D_SEND = rf"भेज(?:ें|िए|िये|ो|\s*(?:दें|दो|दीजिए|दीजिये)){_D_END}"
+_D_DO = rf"(?:करें|कीजिए|कीजिये|करो|कर\s*(?:दें|दो|दीजिए|दीजिये)){_D_END}"
+_D_FILL = rf"भर(?:ें|िए|िये|ो|\s*(?:दें|दो|दीजिए|दीजिये)){_D_END}"
+
+# Romanised Hindi spelling variants, written as alternatives rather than by rewriting
+# the text, so evidence is always cut from the original message. Bare "kar" and past
+# forms such as "kar diya" are left out: they describe what someone did, not a request.
+_R_TELL = r"(?:bata(?:o|iye|ye|yen|yein|en|ein)\b|bata\s+(?:do|de|dijiye|dena)\b)"
+_R_SEND = r"(?:bhej(?:o|e|en|ein|iye)\b|bhej\s+(?:do|de|dijiye|dena)\b)"
+_R_DO = r"(?:kar(?:o|e|en|ein|iye)\b|kar\s+(?:do|de|dijiye|dena)\b)"
+_R_FILL = r"(?:bhar(?:o|e|en|ein|iye)\b|bhar\s+(?:do|de|dijiye)\b)"
+_R_WILL_BE = r"(?:ho|kar\s+diya|kiya)\s+ja(?:a)?(?:yega|yegi|ega|egi|yenge|enge)\b"
+
 _URGENCY_PATTERNS = _compile(
     r"\b(?:urgent(?:ly)?|immediately|right away|act now|asap)\b",
     r"\bwithin\s+\d+\s*(?:hours?|hrs?|minutes?|mins?|days?)\b",
@@ -58,8 +82,21 @@ _URGENCY_PATTERNS = _compile(
     r"\b(?:account|card|sim|number|service|kyc|connection|electricity|power)\b" + _GAP + r"{0,40}"
     r"\b(?:blocked|suspended|deactivated|disconnected|frozen|closed|terminated)\b",
     r"\b(?:legal action|arrest warrant|arrested|police case)\b",
-    # Hindi: immediately, at once, final warning, account closed, will be blocked
-    r"तुरंत|तत्काल|अंतिम चेतावनी|खाता बंद|ब्लॉक (?:हो|कर दिया) जाएगा",
+    # Hindi: immediately, at once, final warning
+    rf"{_D_START}(?:तुरंत|तुरन्त|तत्काल|अंतिम\s*चेतावनी){_D_END}",
+    # Hindi: "now" / "today itself" only when followed by an action, since on their own
+    # they are everyday words.
+    rf"{_D_START}(?:अभी|आज\s*ही){_D_END}" + _GAP + r"{0,25}?"
+    rf"(?:कॉल|संपर्क|क्लिक|भुगतान|अपडेट|{_D_DO}|{_D_SEND}|{_D_FILL}|{_D_TELL})",
+    # Hindi: account / card / SIM / electricity ... will be closed or blocked
+    rf"{_D_START}(?:खाता|खाते|अकाउंट|कार्ड|सिम|नंबर|बिजली|कनेक्शन|सेवा|केवाईसी){_D_END}" + _GAP + r"{0,25}?"
+    rf"(?:बंद|ब्लॉक|निलंबित|सस्पेंड)\s*(?:हो|कर\s*दिया|कर\s*दी|किया)\s*जा(?:एगा|येगा|एगी|येगी|एंगे|येंगे){_D_END}",
+    # Romanised Hindi: immediately, final warning
+    r"\bturant\b|\bantim\s+chet(?:a|aa)vani\b",
+    r"\b(?:abhi|aa?j\s+h(?:i|ee))\b" + _GAP + r"{0,25}?"
+    rf"(?:\b(?:call|update|click|payment|bhugtan)\b|{_R_DO}|{_R_SEND}|{_R_FILL}|{_R_TELL})",
+    r"\b(?:khaa?ta|account|card|sim|kyc|bijli|connection|number)\b" + _GAP + r"{0,25}?"
+    rf"\b(?:bandh?|block|suspend|deactivate)\s+{_R_WILL_BE}",
 )
 
 _CREDENTIAL_TERMS = (
@@ -71,16 +108,32 @@ _CREDENTIAL_PATTERNS = _compile(
     r"\b(?:share|send|provide|enter|tell|give|confirm|verify|update|submit|forward|reply with)\b"
     + _GAP + r"{0,40}?\b" + _CREDENTIAL_TERMS + r"\b",
 )
-# Hindi: OTP / PIN / password followed by tell, send, share, or enter
+# Hindi word order puts the object first: OTP / PIN / password, then tell, send, or share.
+_HINDI_CREDENTIAL_TERMS = (
+    rf"(?:{_D_START}(?:ओटीपी|पासवर्ड|सीवीवी|पिन(?!\s*कोड)){_D_END}"
+    r"|\b(?:otp|password|cvv|pin(?!\s*code))\b)"
+)
 _HINDI_CREDENTIAL_PATTERNS = _compile(
-    r"(?:ओटीपी|otp|पिन(?!\s*कोड)|पासवर्ड)" + _GAP + r"{0,30}?"
-    r"(?:बताएं|बताइए|भेजें|भेजिए|शेयर करें|साझा करें|दर्ज करें)",
+    # Devanagari (also with OTP / PIN written in English letters)
+    _HINDI_CREDENTIAL_TERMS + _GAP + r"{0,30}?"
+    rf"(?:{_D_TELL}|{_D_SEND}|(?:शेयर|साझा|दर्ज)\s*{_D_DO})",
+    # Romanised Hindi
+    _HINDI_CREDENTIAL_TERMS + _GAP + r"{0,30}?" + rf"(?:{_R_TELL}|{_R_SEND}|\bshare\s+{_R_DO})",
 )
 # "Never share your OTP" is safety advice, not a request.
 _NEGATION_BEFORE = re.compile(
     r"\b(?:do not|don['’]?t|never|not|no one|nobody)\b" + _GAP + r"{0,30}$", re.IGNORECASE
 )
-_HINDI_NEGATION = re.compile(r"(?<!\S)न(?!\S)|मत|नहीं")
+# Hindi negation sits between the object and the verb ("OTP kisi ko na batayein",
+# "साझा न करें") or straight after the verb ("बताएं नहीं", "share karo mat").
+# "na" / "ना" after a verb is usually a softener ("bata do na" = "please tell"), so only
+# नहीं / मत / nahi / mat count when they follow the verb. When in doubt, no finding.
+_HINDI_NEGATION_INSIDE = re.compile(
+    rf"{_D_START}(?:न|ना|नहीं|मत){_D_END}|\b(?:na|naa|nahi|nahin|nhi|mat)\b", re.IGNORECASE
+)
+_HINDI_NEGATION_AFTER = re.compile(
+    rf"\s*(?:{_D_START}(?:नहीं|मत){_D_END}|\b(?:nahi|nahin|nhi|mat)\b)", re.IGNORECASE
+)
 
 _MONEY = r"(?:₹|\brs\.?|\binr\b|\brupees\b)\s?\d[\d,]*"
 _PAYMENT_PATTERNS = _compile(
@@ -92,8 +145,17 @@ _PAYMENT_PATTERNS = _compile(
     r"\b(?:won|winner|prize|lottery|reward|cashback|gift)\b" + _GAP + r"{0,80}?"
     r"\b(?:pay|fees?|charges?|deposit)\b",
     r"\b(?:overdue|unpaid|pending)\s+(?:bill|payment|dues|challan|fine)\b",
-    # Hindi: make the payment, send money, transfer money, processing fee
-    r"भुगतान करें|पैसे भेजें|पैसे ट्रांसफर|प्रोसेसिंग शुल्क",
+    # Hindi: send / transfer / deposit money, make the payment, pay the fee
+    rf"{_D_START}(?:पैसे|पैसा|रुपये|रुपए|राशि|रकम){_D_END}\s*"
+    rf"(?:{_D_SEND}|(?:ट्रांसफर|जमा)\s*{_D_DO}|ट्रांसफर{_D_END})",
+    rf"{_D_START}भुगतान\s*{_D_DO}",
+    rf"{_D_START}(?:शुल्क|फीस|फ़ीस|चार्ज){_D_END}\s*(?:{_D_FILL}|जमा\s*{_D_DO}|का\s*भुगतान\s*{_D_DO})",
+    rf"{_D_START}(?:प्रोसेसिंग|पंजीकरण|रजिस्ट्रेशन|डिलीवरी|कस्टम|कस्टम्स|सत्यापन|वेरिफिकेशन)\s*"
+    rf"(?:शुल्क|फीस|फ़ीस|चार्ज){_D_END}",
+    # Romanised Hindi
+    rf"\b(?:paise|paisa|paisey|rupaye|rupaiye|amount)\s+(?:{_R_SEND}|(?:transfer|jama)\s+{_R_DO})",
+    rf"\b(?:payment|bhugtan)\s+{_R_DO}",
+    rf"\b(?:fees?|fis|shulk|charges?)\s+(?:{_R_FILL}|(?:jama|pay)\s+{_R_DO})",
 )
 
 _NOT_MID_WORD = r"(?<![@\w.-])"
@@ -136,18 +198,24 @@ def _detect_patterns(category: str, patterns: list[re.Pattern[str]], message: st
     return _finding(category, match.group()) if match else None
 
 
+def _negated_after(message: str, match: re.Match[str]) -> bool:
+    return bool(_HINDI_NEGATION_AFTER.match(message, match.end()))
+
+
 def _detect_credential_request(message: str) -> Finding | None:
     matches = [
         m
         for pattern in _CREDENTIAL_PATTERNS
         for m in pattern.finditer(message)
-        if not _NEGATION_BEFORE.search(message[: m.start()])
+        # English negation comes before the verb; Hinglish negation after it
+        # ("share your OTP mat karo").
+        if not _NEGATION_BEFORE.search(message[: m.start()]) and not _negated_after(message, m)
     ]
     matches += [
         m
         for pattern in _HINDI_CREDENTIAL_PATTERNS
         for m in pattern.finditer(message)
-        if not _HINDI_NEGATION.search(m.group())
+        if not _HINDI_NEGATION_INSIDE.search(m.group()) and not _negated_after(message, m)
     ]
     match = _earliest(matches)
     return _finding(CREDENTIAL_REQUEST, match.group()) if match else None

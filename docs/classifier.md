@@ -53,24 +53,26 @@ The model produces a number internally, and the label comes from comparing it wi
 | `status` | `label` | When |
 | --- | --- | --- |
 | `ok` | `spam_like` or `not_spam_like` | The model ran |
-| `not_applicable` | `null` | Most of the message is not in the Latin alphabet |
+| `not_applicable` | `null` | The message does not appear to be mainly in English |
 | `unavailable` | `null` | The model could not be loaded safely, or failed on this message |
 
 `model` is `null` when the status is `unavailable`. Every status has its own notice.
 
 ## Language handling
 
-The model uses English character patterns. A message is marked `not_applicable` only when it clearly is not written in the Latin alphabet:
+The model uses English character patterns and was trained only on English SMS. It is run only when a message appears to be mainly in English. Two checks decide this, and either one can stop the model:
 
-- only letters are counted, so digits, punctuation, currency signs, and emoji are ignored;
-- if fewer than half of the letters are Latin, the classifier is not run;
-- messages with fewer than four letters are always classified, to stay conservative.
+1. **The language estimate** (`language.detected` in the response, from `backend/app/language.py`). The model is not run when the estimate is `hi`, `hi-Latn`, `te`, `ur`, `bn`, or `mixed`. `mixed` is included because the estimate only gives `en` when it can tell the message is mainly English.
+2. **A script check.** The model is not run when fewer than half of the letters are Latin. Only letters are counted, and messages with fewer than four letters pass this check.
+
+When the estimate is `en` or `unknown` (for example a message of only numbers, emoji, or a link), only the script check applies, exactly as before the language estimate existed.
 
 The effect:
 
-- **English** is classified.
-- **Romanised Hindi (Hinglish)** is classified, because it is written in the Latin alphabet. The model was not trained on it, and its results on Hinglish have not been evaluated.
-- **Hindi in Devanagari, Bengali, Urdu,** and other non-Latin scripts are `not_applicable`.
+- **English** is classified, as before. Across all 5,574 UCI English messages, adding the language estimate changed the classifier result for one message only, and that message is romanised Hindi.
+- **Mostly English with a Hindi word or two** ("…Kal meeting hai, thanks") is classified.
+- **Romanised Hindi (Hinglish)** is `not_applicable` when the estimate recognises it. Text with too few romanised-Hindi words is estimated as English and is still classified.
+- **Hindi in Devanagari, Telugu, Urdu, Bengali,** other non-Latin scripts, and mixed-script messages are `not_applicable`.
 
 No multilingual ML support is claimed. The warning-sign rules still run on every message, including their small set of Hindi phrases.
 

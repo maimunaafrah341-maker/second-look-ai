@@ -10,7 +10,7 @@ This file records where that guidance comes from, how it was checked, what the s
 - **It is not a verdict.** A match means the guidance uses similar words. It says nothing about whether the message is fraudulent.
 - **It is not an endorsement.** The publishers have not reviewed or approved this project.
 - **Summaries are ours.** Each summary is written by Second Look in its own words. Nothing is quoted, and no graphics are reproduced. Read the linked source for the official wording.
-- **English only.** The corpus and the matching are English. A message in Hindi, Urdu, Telugu, or Bengali returns no guidance. No multilingual retrieval has been built or evaluated.
+- **English guidance, limited Hindi matching.** The corpus and its summaries are English. Hindi (Devanagari) and romanised-Hindi messages can reach the same English passages through a small term map (see "Hindi and romanised-Hindi matching" below). Telugu, Urdu, and Bengali words are not matched. Hindi matching has not been evaluated on real messages.
 
 ## Sources in the corpus
 
@@ -102,7 +102,7 @@ How a message is counted:
 
 | Part | Scored | Correct matches | False matches | Missed | Correct silences | Precision | Recall |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Development | 35 | 12 | 0 | 0 | 23 | 1.000 | 1.000 |
+| Development | 35 | 12 | 1 | 0 | 22 | 0.923 | 1.000 |
 | Check | 27 | 7 | 3 | 4 | 13 | 0.700 | 0.636 |
 
 Effect of each rule on the check part:
@@ -123,6 +123,20 @@ What went wrong on the check part:
 Every miss is a wording gap. That is the expected weakness of keyword matching.
 
 A test (`backend/tests/test_retrieval_eval.py`) fails if any of these counts changes, so a change to the corpus or rules has to be looked at and recorded.
+
+## Hindi and romanised-Hindi matching
+
+`backend/app/data/term_map.json` lists Hindi (Devanagari) and romanised-Hindi words and short phrases, each pointing to a term the English corpus already uses, for example ओटीपी → `otp`, खाता or khata → `account`, शुल्क or shulk → `fee`, "bata diya" → `shared`.
+
+- **Not a translation.** The map only adds existing corpus terms to the query. The user's message is never changed, and no translated text is produced or shown.
+- **Same safeguards.** Mapped terms go through the same match groups, two-term minimum, and similarity threshold as English words. One mapped word on its own matches nothing.
+- **Checked when loaded.** Every concept must already be a retrieval term in the corpus, and a romanised entry may not be an English corpus word, so English messages are unaffected. An invalid map stops the service from starting, like an invalid corpus.
+- **Hindi safety advice is ignored.** Hindi puts the negation after the object ("OTP किसी को न बताएं", "OTP share mat karo"), so any sentence containing न, ना, नहीं, मत, nahi, nahin, or nhi, or "na", "naa", or "mat" next to other romanised-Hindi words, is left out of matching. A missed match is preferred to a phishing warning on a bank's own advice.
+- **English unchanged.** Run over all 5,574 UCI English messages and the 70 retrieval-set messages, the term map changed the result for one message only: the Hindi item `dev-19`.
+
+### Effect on the development set
+
+`dev-19` ("आपका खाता बंद हो जाएगा। तुरंत अपना ओटीपी बताएं।") was labelled "expect nothing" when retrieval was English-only. It now retrieves the phishing guidance, which is the intended behaviour, but against its original label it counts as a false match. The label and the evaluation file are left unchanged, so the development counts above moved from 0 to 1 false match. The frozen check part is unchanged.
 
 ## Rules and retrieval can disagree
 
@@ -145,11 +159,12 @@ The third row is a scam pattern that returns nothing at all. For that reason:
 - **Tiny corpus.** Ten passages from five sources, of which eight passages are served.
 - **Coverage gaps.** There is no verified guidance yet on OTP or KYC-update messages specifically, UPI or QR-code scams, electricity-bill or parcel-delivery SMS, remote-access apps, loan apps, or lottery scams beyond one line in the phishing leaflet. Messages of those kinds usually return no guidance.
 - **Keyword matching only.** It matches words, not meaning. A scam described in unusual wording will be missed.
+- **Hindi matching is narrow.** Only words in the term map are matched, a Hindi sentence containing a negation word is ignored, and nothing has been measured on real Hindi messages.
 - **False matches and misses happen.** See the check results above.
 - **The advice filter can be exploited.** A scam sentence that contains "never" or "do not" is ignored for matching. The result is no guidance, with the notice that this does not mean the message is safe.
 - **No real-world evaluation.** The only measurement is the small hand-written set above.
 - **Sources go out of date.** Links and advice can change. The retrieval date is shown with every result, and nothing checks the links automatically.
-- **English only.** See above.
+- **Languages.** See "What the guidance section is, and is not" above.
 
 ## Adding or changing a source
 
