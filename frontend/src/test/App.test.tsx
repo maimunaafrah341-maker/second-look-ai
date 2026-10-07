@@ -232,7 +232,7 @@ test("screenshot upload is clearly not available and does nothing", async () => 
   const upload = screen.getByRole("button", { name: /upload screenshot/i });
 
   expect(upload).toHaveAttribute("aria-disabled", "true");
-  expect(upload).toHaveTextContent("Coming soon");
+  expect(upload).toHaveTextContent("Not supported — paste the text instead");
   await user.click(upload);
   expect(document.querySelector('input[type="file"]')).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();

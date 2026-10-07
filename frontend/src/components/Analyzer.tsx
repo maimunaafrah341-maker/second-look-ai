@@ -109,7 +109,7 @@ export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, te
               >
                 <Icon name="upload" size={18} />
                 Upload screenshot
-                <span className="pill">Coming soon</span>
+                <span className="pill">Not supported — paste the text instead</span>
               </button>
               <span id={ids.upload} className="visually-hidden">
                 Screenshot checking is not available yet. Copy the message text and paste it instead.

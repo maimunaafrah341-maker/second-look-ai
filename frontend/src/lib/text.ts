@@ -31,7 +31,7 @@ export const LANGUAGE_LABELS: Record<LanguageTag, string> = {
 };
 
 export const COVERAGE_LABELS: Record<LanguageCoverage, string> = {
-  supported: "Full checks",
+  supported: "All checks apply",
   partial: "Partial checks",
   unsupported: "Limited checks",
 };

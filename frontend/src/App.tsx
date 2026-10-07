@@ -54,9 +54,15 @@ export default function App() {
 
   useEffect(() => () => requestRef.current?.abort(), []);
 
-  // Move focus to the result summary so keyboard and screen-reader users land on it.
+  // Bring the result summary into view and move focus to it, so keyboard and screen-reader
+  // users land on it. Scrolling is instant when the user has asked for reduced motion.
   useEffect(() => {
-    if (phase.kind === "result") resultsHeadingRef.current?.focus();
+    if (phase.kind !== "result") return;
+    const heading = resultsHeadingRef.current;
+    if (!heading) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView?.({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }, [phase]);
 
   const focusInput = useCallback(() => {
