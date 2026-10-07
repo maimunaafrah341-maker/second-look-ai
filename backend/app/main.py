@@ -1,7 +1,9 @@
+import os
 from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -45,6 +47,23 @@ CLASSIFIER_UNAVAILABLE_NOTICE = (
 )
 
 app = FastAPI(title="Second Look", version="0.1.0")
+
+# Browser origins allowed to call the API from another site, comma-separated (for example
+# "https://second-look.example"). Unset means no cross-origin access; local development
+# needs none because the Vite dev server proxies API calls.
+ALLOWED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.environ.get("SECOND_LOOK_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+    allow_credentials=False,
+)
 
 # Loaded once at startup. A missing or invalid corpus stops the service from starting.
 guidance_index = GuidanceIndex.from_file()
