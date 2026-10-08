@@ -88,7 +88,11 @@ def test_estimate_is_deterministic():
 def test_every_tag_has_coverage_and_an_honest_notice():
     assert set(COVERAGE) == set(NOTICES) == TAGS
     assert COVERAGE["en"] == "supported"
-    assert {COVERAGE[tag] for tag in ("te", "ur", "bn", "unknown")} == {"unsupported"}
+    assert {COVERAGE[tag] for tag in ("hi", "hi-Latn", "mixed", "te", "ur", "bn")} == {"partial"}
+    assert COVERAGE["unknown"] == "unsupported"
+    # Telugu, Urdu and Bengali say plainly that no native speaker has reviewed them yet.
+    for tag in ("te", "ur", "bn"):
+        assert "not yet been reviewed by native speakers" in NOTICES[tag]
     for tag, notice in NOTICES.items():
         assert notice.strip()
         assert "multilingual" not in notice.lower()

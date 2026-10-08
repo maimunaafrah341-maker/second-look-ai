@@ -215,9 +215,34 @@ def load_corpus(path: Path = DEFAULT_CORPUS) -> tuple[dict[str, Source], list[Pa
     return sources, passages
 
 
-# Words in Devanagari (letters and vowel signs, not the danda) or in Latin letters.
-_HINDI_OR_LATIN_WORD = re.compile(r"[ऀ-ॣॱ-ॿ]+|[a-z0-9]+")
-_SENTENCE = re.compile(r"[^.!?।\n]+")
+# Words in Devanagari (letters and vowel signs, not the danda) or in Latin letters, and
+# words in the Telugu, Bengali and Arabic (Urdu) scripts. A word in those three scripts
+# must start with one of its letters, so a stray zero-width joiner is never a word.
+_UR_LETTERS = "ؐ-ؚؠ-ٟٮ-ۓە-ۯۺ-ۿ"
+_HINDI_OR_LATIN_WORD = re.compile(
+    r"[ऀ-ॣॱ-ॿ]+|[a-z0-9]+"
+    "|[ఀ-౿][ఀ-౿‌‍]*"
+    "|[ঀ-৿][ঀ-৿‌‍]*"
+    f"|[{_UR_LETTERS}][{_UR_LETTERS}‌‍]*"
+)
+_SENTENCE = re.compile(r"[^.!?।۔؟\n]+")
+# The same Telugu, Bengali or Urdu word can be typed in more than one way: with or without
+# zero-width joiners, Bengali য় ড় ঢ় as one character or as letter plus nukta, and Urdu
+# with Arabic-keyboard letters (ك ي ى ه for ک ی ہ). Words in those scripts are reduced to
+# one spelling. Devanagari and Latin words are left exactly as they are.
+_ONE_SPELLING = str.maketrans(
+    {
+        "‌": None,
+        "‍": None,
+        "ড়": "ড়",
+        "ঢ়": "ঢ়",
+        "য়": "য়",
+        "ك": "ک",
+        "ي": "ی",
+        "ى": "ی",
+        "ه": "ہ",
+    }
+)
 # Hindi negation usually follows the object ("OTP किसी को न बताएं", "OTP share mat
 # karo"), so the English rule of ignoring text after "never" does not work. A sentence
 # with a Hindi negation word is left out of matching entirely: a missed match is safer
@@ -227,15 +252,27 @@ _ROMAN_NEGATION = frozenset({"nahi", "nahin", "nhi"})
 # "na" and "mat" are also English or abbreviations, so they count only next to other
 # romanised-Hindi words.
 _ROMAN_NEGATION_IF_HINDI = frozenset({"na", "naa", "mat"})
+# Telugu, Urdu and Bengali negation words, treated the same way. Telugu also forms
+# "don't" with a suffix (చెప్పకండి, పంపవద్దు), checked in _is_hindi_advice.
+_OTHER_NEGATION = frozenset(
+    word.translate(_ONE_SPELLING)
+    for word in ("వద్దు", "కూడదు", "ఎప్పుడూ", "ఎవరికీ", "ఎవరితోనూ", "نہ", "مت", "نہیں", "کبھی", "না", "কখনো", "কখনও", "নয়")
+)
+
+
+def _one_spelling(word: str) -> str:
+    return word.translate(_ONE_SPELLING) if "؀" <= word[0] < "ऀ" or word[0] >= "ঀ" else word
 
 
 def _hindi_words(text: str) -> list[str]:
-    return _HINDI_OR_LATIN_WORD.findall(text.lower())
+    return [_one_spelling(word) for word in _HINDI_OR_LATIN_WORD.findall(text.lower())]
 
 
 def _is_hindi_advice(sentence: str) -> bool:
     words = set(_hindi_words(sentence))
-    if words & (_DEVANAGARI_NEGATION | _ROMAN_NEGATION):
+    if words & (_DEVANAGARI_NEGATION | _ROMAN_NEGATION | _OTHER_NEGATION):
+        return True
+    if any(word.endswith("కండి") or "వద్దు" in word for word in words):
         return True
     return bool(words & _ROMAN_NEGATION_IF_HINDI) and bool(words & ROMAN_HINDI_CUES)
 
@@ -246,7 +283,7 @@ def _drop_hindi_advice(text: str) -> str:
 
 
 class TermMap:
-    """Maps Hindi and romanised-Hindi words and short phrases to existing corpus terms."""
+    """Maps Hindi, romanised-Hindi, Telugu, Urdu and Bengali words and short phrases to existing corpus terms."""
 
     def __init__(self, phrases: dict[tuple[str, ...], str]):
         self._phrases = phrases
@@ -272,7 +309,9 @@ class TermMap:
                 raise CorpusError(f"Term map concept {concept!r} needs a non-empty list of terms.")
             for term in terms:
                 words = tuple(_hindi_words(term)) if isinstance(term, str) else ()
-                if not words or "".join(words) != "".join(str(term).lower().split()):
+                # Spelling variants are reduced as in _hindi_words; Devanagari and Latin
+                # terms are compared exactly as before.
+                if not words or "".join(words) != "".join(str(term).lower().split()).translate(_ONE_SPELLING):
                     raise CorpusError(f"Term map entry {term!r} for {concept!r} is not a plain word or phrase.")
                 # A single Latin word that is already a corpus term would change English results.
                 if len(words) == 1 and words[0].isascii() and words[0] in vocabulary:
@@ -322,6 +361,13 @@ class GuidanceIndex:
     @property
     def vocabulary(self) -> set[str]:
         return set(self._idf)
+
+    def verified_passage(self, passage_id: str) -> tuple[Passage, Source]:
+        """Return one verified passage and its source by id, for fixed (non-search) use."""
+        for passage in self._passages:
+            if passage.id == passage_id:
+                return passage, self._sources[passage.source_id]
+        raise CorpusError(f"No verified passage with id {passage_id!r}.")
 
     def use_term_map(self, term_map: TermMap) -> "GuidanceIndex":
         self._term_map = term_map

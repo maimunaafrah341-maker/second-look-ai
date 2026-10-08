@@ -62,11 +62,14 @@ COVERAGE = {
     "hi": "partial",
     "hi-Latn": "partial",
     "mixed": "partial",
-    "te": "unsupported",
-    "ur": "unsupported",
-    "bn": "unsupported",
+    "te": "partial",
+    "ur": "partial",
+    "bn": "partial",
     "unknown": "unsupported",
 }
+
+# Shown until a native speaker has reviewed the Telugu, Urdu and Bengali phrase lists.
+_NOT_REVIEWED = "These checks have not yet been reviewed by native speakers, and other wording may be missed."
 
 NOTICES = {
     "en": f"Estimated language: English. All of Second Look's checks are designed for English. {_CAVEAT}",
@@ -85,9 +88,21 @@ NOTICES = {
         "Estimated language: a mix of languages or scripts. English parts are checked fully; "
         f"other parts may be checked only partly or not at all. {_CAVEAT}"
     ),
-    "te": f"Estimated language: Telugu. Telugu text is not analysed yet. {_LINKS_AND_AMOUNTS} {_CAVEAT}",
-    "ur": f"Estimated language: Urdu. Urdu text is not analysed. {_LINKS_AND_AMOUNTS} {_CAVEAT}",
-    "bn": f"Estimated language: Bengali. Bengali text is not analysed. {_LINKS_AND_AMOUNTS} {_CAVEAT}",
+    "te": (
+        "Estimated language: Telugu. A limited list of Telugu scam phrases is checked, and some "
+        f"Telugu words are used to find the official guidance, which is in English. {_NOT_REVIEWED} "
+        f"{_LINKS_AND_AMOUNTS} {_CAVEAT}"
+    ),
+    "ur": (
+        "Estimated language: Urdu. A limited list of Urdu scam phrases is checked, and some "
+        f"Urdu words are used to find the official guidance, which is in English. {_NOT_REVIEWED} "
+        f"{_LINKS_AND_AMOUNTS} {_CAVEAT}"
+    ),
+    "bn": (
+        "Estimated language: Bengali. A limited list of Bengali scam phrases is checked, and some "
+        f"Bengali words are used to find the official guidance, which is in English. {_NOT_REVIEWED} "
+        f"{_LINKS_AND_AMOUNTS} {_CAVEAT}"
+    ),
     "unknown": (
         "The language could not be estimated, for example because the message has few or no "
         f"letters or uses a script Second Look does not recognise. {_LINKS_AND_AMOUNTS}"

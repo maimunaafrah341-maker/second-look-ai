@@ -158,6 +158,187 @@ _PAYMENT_PATTERNS = _compile(
     rf"\b(?:fees?|fis|shulk|charges?)\s+(?:{_R_FILL}|(?:jama|pay)\s+{_R_DO})",
 )
 
+# --- Telugu, Urdu and Bengali -----------------------------------------------------------
+# Same approach as Hindi: a limited list of common phrases, written without review by
+# native speakers. Each script gets its own word edges, since \b is unreliable for vowel
+# signs. These patterns need the script's own words, so English and Hindi text never
+# matches them.
+
+# "Same sentence", also stopping at the Urdu full stop and question mark. The English and
+# Hindi patterns keep _GAP unchanged.
+_GAP_X = r"[^.!?।۔؟\n]"
+
+_TE_LETTERS = r"ఀ-౿‌‍"
+_BN_LETTERS = r"ঀ-৿‌‍"
+# Arabic-script letters and vowel marks, without Arabic punctuation (، ؛ ؟ ۔) or digits.
+_UR_LETTERS = r"ؐ-ؚؠ-ٟٮ-ۓە-ۯۺ-ۿ‌‍"
+_T_START, _T_END = rf"(?<![{_TE_LETTERS}])", rf"(?![{_TE_LETTERS}])"
+_B_START, _B_END = rf"(?<![{_BN_LETTERS}])", rf"(?![{_BN_LETTERS}])"
+_U_START, _U_END = rf"(?<![{_UR_LETTERS}])", rf"(?![{_UR_LETTERS}])"
+
+# OTP, PIN, password and CVV are often written in English letters inside these languages.
+_LATIN_SECRET = r"\b(?:otp|pin(?!\s*code)|password|cvv)\b"
+_LATIN_SUBJECT = r"\b(?:account|card|sim|kyc|atm|upi)\b"
+_LATIN_ACTION = r"\b(?:call|click|update|pay)\b"
+
+
+def _with_joiners(pattern: str, virama: str) -> str:
+    """Accept a word typed with or without a zero-width (non-)joiner after the virama."""
+    return pattern.replace("‌", "").replace("‍", "").replace(virama, virama + "[‌‍]?")
+
+
+def _telugu(pattern: str) -> str:
+    return _with_joiners(pattern, "్")
+
+
+def _bengali(pattern: str) -> str:
+    # য়, ড় and ঢ় can be typed as one character or as the base letter plus a nukta.
+    pattern = _with_joiners(pattern, "্")
+    for single, base in (("য়", "য"), ("ড়", "ড"), ("ঢ়", "ঢ")):
+        pattern = pattern.replace(single, base + "়").replace(base + "়", f"(?:{single}|{base}়)")
+    return pattern
+
+
+def _urdu(pattern: str) -> str:
+    # Arabic keyboards type ك ي ى ه where Urdu uses ک ی ہ.
+    for urdu, alternatives in (("ک", "کك"), ("ی", "یيى"), ("ہ", "ہه")):
+        pattern = pattern.replace(urdu, f"[{alternatives}]")
+    return pattern
+
+
+# Telugu. Polite requests end in -ండి; "don't" is -కండి or వద్దు, so negated advice
+# ("చెప్పకండి") does not match the request forms below.
+_TE_TELL = r"(?:చెప్పండి|చెప్పు|చెప్పేయండి)"
+_TE_SEND = r"(?:పంపండి|పంపించండి|పంపు|పంపించు)"
+_TE_GIVE = r"(?:ఇవ్వండి|ఇవ్వు|ఇచ్చేయండి)"
+_TE_DO = r"(?:చేయండి|చెయ్యండి|చేయి|చెయ్యి)"
+_TE_PAY = r"(?:చెల్లించండి|చెల్లించు|కట్టండి|కట్టు)"
+# Any polite request word, except "come" (రండి) and "don't" (-కండి).
+_TE_REQUEST = rf"{_T_START}[{_TE_LETTERS}]*(?<![కర])ండి{_T_END}"
+
+_TE_URGENCY = [
+    rf"{_T_START}(?:చివరి|తుది)\s*హెచ్చరిక{_T_END}",
+    # "Immediately" / "today itself" only when followed by an action, since on their own
+    # they are everyday words ("వెంటనే వస్తాను", "I'll come right away").
+    rf"{_T_START}(?:వెంటనే|తక్షణమే|తక్షణం|ఈరోజే|ఇప్పుడే){_T_END}" + _GAP_X + r"{0,40}?"
+    rf"(?:{_T_START}(?:కాల్|క్లిక్|అప్‌డేట్|పేమెంట్){_T_END}|{_LATIN_ACTION}|{_TE_REQUEST})",
+    # Account / card / SIM / connection ... will be (or has been) blocked or cut off
+    rf"(?:{_T_START}(?:ఖాతా|అకౌంట్|కార్డ్|కార్డు|సిమ్|కనెక్షన్|సేవ|నంబర్|కేవైసీ|కరెంట్|విద్యుత్)[{_TE_LETTERS}]*|{_LATIN_SUBJECT})"
+    + _GAP_X + r"{0,40}?"
+    r"(?:బ్లాక్|నిలిపివేయ|నిలిపి\s*వేయ|రద్దు|సస్పెండ్|డీయాక్టివేట్|కట్|మూసివేయ)\s*"
+    rf"(?:అవుతుంది|అవుతాయి|అయింది|అయ్యింది|చేయబడుతుంది|చేయబడింది|చేయబడతాయి|బడుతుంది|బడింది|చేస్తాము|చేస్తాం){_T_END}",
+]
+_TE_SECRET = (
+    rf"(?:{_T_START}(?:ఓటీపీ|ఓటిపి|పిన్(?!\s*కోడ్)|పాస్‌వర్డ్|సీవీవీ|(?:కార్డ్|కార్డు|బ్యాంక్)\s*వివరాలు)"
+    rf"(?:ని|ను|లను)?{_T_END}|{_LATIN_SECRET})"
+)
+_TE_CREDENTIAL = (
+    _TE_SECRET + _GAP_X + r"{0,30}?"
+    rf"(?:{_TE_TELL}|{_TE_SEND}|{_TE_GIVE}|(?:షేర్|నమోదు|ఎంటర్)\s*{_TE_DO}){_T_END}"
+)
+_TE_PAYMENT = [
+    rf"{_T_START}(?:రిజిస్ట్రేషన్|ప్రాసెసింగ్|డెలివరీ|కస్టమ్స్|వెరిఫికేషన్|యాక్టివేషన్)\s*(?:ఫీజు|రుసుము|ఛార్జీ|ఛార్జ్){_T_END}",
+    rf"{_T_START}(?:ఫీజు|రుసుము|ఛార్జీ|ఛార్జ్|ఛార్జీలు){_T_END}" + _GAP_X + r"{0,30}?"
+    rf"(?:{_TE_PAY}|(?:డిపాజిట్|జమ|పే)\s*{_TE_DO}){_T_END}",
+    rf"(?:{_T_START}(?:డబ్బు|డబ్బులు|రూపాయలు|మొత్తం){_T_END}|(?:₹|{_T_START}రూ\.?)\s?\d[\d,]*)" + _GAP_X + r"{0,25}?"
+    rf"(?:{_TE_SEND}|{_TE_PAY}|(?:డిపాజిట్|జమ|ట్రాన్స్‌ఫర్|పే)\s*{_TE_DO}){_T_END}",
+    rf"{_T_START}(?:చెల్లించండి|(?:చెల్లింపు|పేమెంట్|డిపాజిట్)\s*{_TE_DO}){_T_END}",
+]
+
+# Urdu
+_UR_TELL = r"(?:بتائیں|بتائیے|بتاؤ|بتا\s*دیں|بتا\s*دو|بتا\s*دیجیے)"
+_UR_SEND = r"(?:بھیجیں|بھیجیے|بھیجو|بھیج\s*دیں|بھیج\s*دو)"
+_UR_DO = r"(?:کریں|کرو|کیجیے|کیجئے|کر\s*دیں|کر\s*دو)"
+_UR_DEPOSIT = r"(?:جمع\s*(?:کرائیں|کروائیں|کریں|کرو|کرا\s*دیں))"
+_UR_PAY = r"(?:ادا\s*(?:کریں|کرو|کیجیے|کر\s*دیں)|ادائیگی\s*(?:کریں|کرو))"
+
+_UR_URGENCY = [
+    rf"{_U_START}آخری\s*(?:وارننگ|انتباہ|موقع|نوٹس){_U_END}",
+    rf"{_U_START}(?:فوراً|فورا|فوری\s*طور\s*پر|ابھی|آج\s*ہی){_U_END}" + _GAP_X + r"{0,30}?"
+    rf"(?:{_U_START}(?:کال|کلک|اپڈیٹ|اپ\s*ڈیٹ|ادائیگی){_U_END}|{_LATIN_ACTION}"
+    rf"|(?:{_UR_TELL}|{_UR_SEND}|{_UR_DO}|{_UR_PAY}|{_UR_DEPOSIT}){_U_END})",
+    rf"(?:{_U_START}(?:اکاؤنٹ|کھاتہ|کھاتا|کارڈ|سم|کنکشن|سروس|نمبر|بجلی){_U_END}|{_LATIN_SUBJECT})"
+    + _GAP_X + r"{0,40}?"
+    r"(?:بند|بلاک|معطل|منقطع|کاٹ|کٹ)\s*"
+    r"(?:ہو\s*جائے\s*گا|ہو\s*جائے\s*گی|ہو\s*جائیں\s*گے|کر\s*دیا\s*جائے\s*گا|کر\s*دی\s*جائے\s*گی|دیا\s*جائے\s*گا"
+    rf"|دی\s*جائے\s*گی|کر\s*دیا\s*گیا|کر\s*دی\s*گئی|ہو\s*گیا|ہو\s*گئی|جائے\s*گا|جائے\s*گی){_U_END}",
+]
+_UR_SECRET = (
+    rf"(?:{_U_START}(?:او\s*ٹی\s*پی|پن(?!\s*کوڈ)|پاس\s*ورڈ|سی\s*وی\s*وی|(?:کارڈ|بینک)\s*کی\s*تفصیلات){_U_END}"
+    rf"|{_LATIN_SECRET})"
+)
+# Bare "دو" is left out: it also means "two" ("OTP دو منٹ میں ختم ہو جائے گا").
+_UR_CREDENTIAL = (
+    _UR_SECRET + _GAP_X + r"{0,30}?" + rf"(?:{_UR_TELL}|{_UR_SEND}|(?:شیئر|درج|داخل)\s*{_UR_DO}|دیں){_U_END}"
+)
+_UR_PAYMENT = [
+    rf"{_U_START}(?:رجسٹریشن|پروسیسنگ|پراسیسنگ|ڈلیوری|ڈیلیوری|کسٹمز|کسٹم|تصدیقی|ایکٹیویشن)\s*(?:فیس|چارجز|چارج){_U_END}",
+    rf"{_U_START}(?:فیس|چارجز|چارج){_U_END}" + _GAP_X + r"{0,30}?" + rf"(?:{_UR_PAY}|{_UR_DEPOSIT}|بھریں|بھرو|دیں){_U_END}",
+    rf"{_U_START}(?:پیسے|پیسہ|رقم|روپے|روپیہ){_U_END}" + _GAP_X + r"{0,25}?"
+    rf"(?:{_UR_SEND}|{_UR_PAY}|{_UR_DEPOSIT}|ٹرانسفر\s*{_UR_DO}){_U_END}",
+    # "شکریہ ادا کریں" means "say thank you".
+    rf"{_U_START}(?<!شکریہ\s)(?:{_UR_PAY}|پیمنٹ\s*{_UR_DO}){_U_END}",
+]
+
+# Bengali. "Don't" uses a different verb form ("বলবেন না", "পাঠাবেন না"), so negated
+# advice does not match the request forms below. "দিন না" is a polite "please give", so a
+# trailing না is not treated as negation.
+_BN_TELL = r"(?:বলুন|বলো|বলে\s*দিন|বলে\s*দাও)"
+_BN_SEND = r"(?:পাঠান|পাঠাও|পাঠিয়ে\s*দিন|পাঠিয়ে\s*দাও)"
+_BN_GIVE = r"(?:দিন|দাও|দিয়ে\s*দিন)"
+_BN_DO = r"(?:করুন|করো|করে\s*দিন)"
+_BN_PAY = rf"(?:(?:পরিশোধ|পেমেন্ট|পে)\s*{_BN_DO}|জমা\s*(?:দিন|দাও|করুন))"
+
+_BN_URGENCY = [
+    rf"{_B_START}(?:শেষ|চূড়ান্ত)\s*(?:সতর্কতা|সতর্কবার্তা|সুযোগ|নোটিশ){_B_END}",
+    rf"{_B_START}(?:এখনই|অবিলম্বে|আজই|তাড়াতাড়ি|দ্রুত){_B_END}" + _GAP_X + r"{0,30}?"
+    rf"(?:{_B_START}(?:কল|ক্লিক|আপডেট|পেমেন্ট|পরিশোধ){_B_END}|{_LATIN_ACTION}"
+    rf"|(?:{_BN_TELL}|{_BN_SEND}|{_BN_GIVE}|{_BN_DO}|{_BN_PAY}){_B_END})",
+    rf"(?:{_B_START}(?:অ্যাকাউন্ট|খাতা|কার্ড|সিম|সংযোগ|কানেকশন|পরিষেবা|সার্ভিস|নম্বর|বিদ্যুৎ)[{_BN_LETTERS}]*|{_LATIN_SUBJECT})"
+    + _GAP_X + r"{0,40}?"
+    r"(?:বন্ধ|ব্লক|স্থগিত|বিচ্ছিন্ন|সাসপেন্ড|নিষ্ক্রিয়|কেটে)\s*"
+    rf"(?:হয়ে\s*যাবে|হবে|করা\s*হবে|করে\s*দেওয়া\s*হবে|দেওয়া\s*হবে|করা\s*হয়েছে|হয়েছে|হয়ে\s*গেছে){_B_END}",
+]
+_BN_SECRET = (
+    rf"(?:{_B_START}(?:ওটিপি|ও\s*টি\s*পি|পিন(?!\s*কোড)|পাসওয়ার্ড|সিভিভি|(?:কার্ডের|ব্যাংকের|অ্যাকাউন্টের)\s*(?:তথ্য|বিবরণ|নম্বর))"
+    rf"(?:টি|টা)?{_B_END}|{_LATIN_SECRET})"
+)
+_BN_CREDENTIAL = (
+    _BN_SECRET + _GAP_X + r"{0,30}?" + rf"(?:{_BN_TELL}|{_BN_SEND}|{_BN_GIVE}|(?:শেয়ার|এন্টার)\s*{_BN_DO}|লিখুন){_B_END}"
+)
+_BN_PAYMENT = [
+    rf"{_B_START}(?:রেজিস্ট্রেশন|প্রসেসিং|প্রক্রিয়াকরণ|ডেলিভারি|কাস্টমস|কাস্টম|ভেরিফিকেশন|অ্যাক্টিভেশন)\s*(?:ফি|চার্জ){_B_END}",
+    rf"{_B_START}(?:ফি|ফিস|চার্জ){_B_END}" + _GAP_X + r"{0,30}?" + rf"(?:{_BN_PAY}|{_BN_GIVE}){_B_END}",
+    rf"{_B_START}(?:টাকা|অর্থ){_B_END}" + _GAP_X + r"{0,25}?" + rf"(?:{_BN_SEND}|{_BN_PAY}|{_BN_GIVE}|ট্রান্সফার\s*{_BN_DO}){_B_END}",
+    rf"{_B_START}(?:পরিশোধ|পেমেন্ট)\s*{_BN_DO}{_B_END}",
+]
+
+_INDIC_URGENCY_PATTERNS = _compile(
+    *map(_telugu, _TE_URGENCY), *map(_urdu, _UR_URGENCY), *map(_bengali, _BN_URGENCY)
+)
+_INDIC_PAYMENT_PATTERNS = _compile(
+    *map(_telugu, _TE_PAYMENT), *map(_urdu, _UR_PAYMENT), *map(_bengali, _BN_PAYMENT)
+)
+# Each credential pattern with the words that make a match safety advice instead: inside
+# the match ("OTP کسی کو نہ بتائیں") or straight after it ("OTP చెప్పండి వద్దు").
+_INDIC_CREDENTIAL_PATTERNS = [
+    (
+        re.compile(_telugu(_TE_CREDENTIAL), re.IGNORECASE),
+        re.compile(_telugu(rf"{_T_START}(?:ఎవరికీ|ఎవరితోనూ|వద్దు|కూడదు|ఎప్పుడూ){_T_END}")),
+        re.compile(_telugu(rf"\s*{_T_START}(?:వద్దు|కూడదు){_T_END}")),
+    ),
+    (
+        re.compile(_urdu(_UR_CREDENTIAL), re.IGNORECASE),
+        re.compile(_urdu(rf"{_U_START}(?:نہ|مت|نہیں|کبھی){_U_END}")),
+        re.compile(_urdu(rf"\s*{_U_START}(?:نہیں|مت){_U_END}")),
+    ),
+    (
+        re.compile(_bengali(_BN_CREDENTIAL), re.IGNORECASE),
+        re.compile(_bengali(rf"{_B_START}(?:না|কখনো|কখনও|কাউকে){_B_END}")),
+        None,
+    ),
+]
+
 _NOT_MID_WORD = r"(?<![@\w.-])"
 _URL_PATTERN = re.compile(
     _NOT_MID_WORD + r"(?:https?://|www\.)[^\s<>\"']+"
@@ -217,6 +398,13 @@ def _detect_credential_request(message: str) -> Finding | None:
         for m in pattern.finditer(message)
         if not _HINDI_NEGATION_INSIDE.search(m.group()) and not _negated_after(message, m)
     ]
+    matches += [
+        m
+        for pattern, negation_inside, negation_after in _INDIC_CREDENTIAL_PATTERNS
+        for m in pattern.finditer(message)
+        if not negation_inside.search(m.group())
+        and not (negation_after and negation_after.match(message, m.end()))
+    ]
     match = _earliest(matches)
     return _finding(CREDENTIAL_REQUEST, match.group()) if match else None
 
@@ -256,9 +444,9 @@ def _detect_link(message: str) -> Finding | None:
 def detect_warning_signs(message: str) -> list[Finding]:
     """Return at most one finding per category, in a fixed category order."""
     findings = [
-        _detect_patterns(URGENCY, _URGENCY_PATTERNS, message),
+        _detect_patterns(URGENCY, _URGENCY_PATTERNS + _INDIC_URGENCY_PATTERNS, message),
         _detect_credential_request(message),
         _detect_link(message),
-        _detect_patterns(PAYMENT_DEMAND, _PAYMENT_PATTERNS, message),
+        _detect_patterns(PAYMENT_DEMAND, _PAYMENT_PATTERNS + _INDIC_PAYMENT_PATTERNS, message),
     ]
     return [finding for finding in findings if finding is not None]
