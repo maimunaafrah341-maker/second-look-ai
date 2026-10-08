@@ -109,7 +109,7 @@ Each summary is written by this project and labelled as such; it is not a quotat
 
 A character TF-IDF and logistic regression model, trained on the UCI SMS Spam Collection (English SMS from the UK and Singapore, around 2011). It answers one narrow question: does this message resemble that older spam?
 
-- It runs only when the message is not identified as Hindi, romanised Hindi, Telugu, Urdu, Bengali or mixed.
+- It runs only when the message is estimated to be English. It is not run for Hindi, romanised Hindi, Telugu, Urdu, Bengali or mixed messages, or when no language can be identified (for example a message that is only digits, emoji or a link).
 - It returns a label, `spam_like` or `not_spam_like`, and never a score.
 - It is shown last, marked experimental, with a notice that it cannot tell whether a message is fraudulent.
 

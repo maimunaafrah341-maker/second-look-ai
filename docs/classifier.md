@@ -62,14 +62,15 @@ The model produces a number internally, and the label comes from comparing it wi
 
 The model uses English character patterns and was trained only on English SMS. It is run only when a message appears to be mainly in English. Two checks decide this, and either one can stop the model:
 
-1. **The language estimate** (`language.detected` in the response, from `backend/app/language.py`). The model is not run when the estimate is `hi`, `hi-Latn`, `te`, `ur`, `bn`, or `mixed`. `mixed` is included because the estimate only gives `en` when it can tell the message is mainly English.
+1. **The language estimate** (`language.detected` in the response, from `backend/app/language.py`). The model is not run when the estimate is `hi`, `hi-Latn`, `te`, `ur`, `bn`, `mixed`, or `unknown`. `mixed` is included because the estimate only gives `en` when it can tell the message is mainly English. `unknown` is included because a message with no letters to judge is not English SMS text.
 2. **A script check.** The model is not run when fewer than half of the letters are Latin. Only letters are counted, and messages with fewer than four letters pass this check.
 
-When the estimate is `en` or `unknown` (for example a message of only numbers, emoji, or a link), only the script check applies, exactly as before the language estimate existed.
+When the estimate is `en`, only the script check applies.
 
 The effect:
 
-- **English** is classified, as before. Across all 5,574 UCI English messages, adding the language estimate changed the classifier result for one message only, and that message is romanised Hindi.
+- **English** is classified, as before. Across all 5,574 UCI English messages, the language estimate changes the classifier result for four messages: one is romanised Hindi, and three have no letters (`645`, `:)` and `:-) :-)`).
+- **No identifiable language** (`unknown`) is `not_applicable`. This covers a message that is only digits, emoji, an amount, a date, or a link. Links are left out when the language is estimated, so a link on its own counts as having no letters. Only 3 of the 5,574 UCI messages are of this kind, so the model has no basis for judging them; before this rule, it rated many strings of digits spam-like. The warning-sign rules still run, so a link on its own still gets its link finding.
 - **Mostly English with a Hindi word or two** ("…Kal meeting hai, thanks") is classified.
 - **Romanised Hindi (Hinglish)** is `not_applicable` when the estimate recognises it. Text with too few romanised-Hindi words is estimated as English and is still classified.
 - **Hindi in Devanagari, Telugu, Urdu, Bengali,** other non-Latin scripts, and mixed-script messages are `not_applicable`.

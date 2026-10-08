@@ -26,7 +26,7 @@ def stub() -> Classifier:
 
 
 def test_gated_languages_are_exactly_the_non_english_estimates():
-    assert NOT_ENGLISH_LANGUAGES == {"hi", "hi-Latn", "te", "ur", "bn", "mixed"}
+    assert NOT_ENGLISH_LANGUAGES == {"hi", "hi-Latn", "te", "ur", "bn", "mixed", "unknown"}
 
 
 @pytest.mark.parametrize("language", sorted(NOT_ENGLISH_LANGUAGES))
@@ -39,12 +39,43 @@ def test_non_english_estimates_are_not_classified(language):
     assert result.model["name"] == "stub"
 
 
-@pytest.mark.parametrize("language", ["en", "unknown", None])
-def test_english_unknown_or_missing_estimate_leaves_the_existing_behaviour(language):
+@pytest.mark.parametrize("language", ["en", None])
+def test_english_or_missing_estimate_leaves_the_existing_behaviour(language):
     result = stub().classify("Your account will be blocked, share OTP now", language)
 
     assert result.status == OK
     assert result.label == "spam_like"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "9876543210",
+        "98765 43210 🙂🙂",
+        "₹500",
+        "10/10/2026 14:30",
+        "🙂🙂🙂",
+        "http://bit.ly/kyc-update",
+        "https://www.example.com/offers",
+    ],
+)
+def test_a_message_with_no_identifiable_language_is_not_classified(message):
+    # Nothing here is English SMS text, which is all the model was trained on.
+    assert estimate_tag(message) == "unknown"
+    body = client.post("/analyze", json={"message": message}).json()
+
+    assert body["language"]["detected"] == "unknown"
+    assert body["classifier"]["status"] == "not_applicable"
+    assert body["classifier"]["label"] is None
+    assert "does not appear to be mainly in English" in body["classifier"]["notice"]
+    assert "does not mean the message is safe" in body["classifier"]["notice"]
+
+
+def test_a_link_on_its_own_still_gets_its_link_finding():
+    body = client.post("/analyze", json={"message": "http://bit.ly/kyc-update"}).json()
+
+    assert [finding["category"] for finding in body["findings"]] == ["link"]
+    assert body["classifier"]["status"] == "not_applicable"
 
 
 def test_script_check_still_applies_when_the_estimate_is_unknown():

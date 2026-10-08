@@ -37,10 +37,12 @@ NOT_SPAM_LIKE = "not_spam_like"
 
 # The model is not run on a message that clearly is not written in the Latin alphabet,
 # or whose estimated language (app/language.py) is not English. "mixed" is included:
-# the estimate gives "en" only when it can tell the message is mainly English.
+# the estimate gives "en" only when it can tell the message is mainly English. "unknown"
+# is included too: a message with no letters to judge (only digits, emoji, an amount, or
+# a link) is not English SMS text, and the training data has almost no such messages.
 MIN_LETTERS_FOR_SCRIPT_CHECK = 4
 MIN_LATIN_SHARE = 0.5
-NOT_ENGLISH_LANGUAGES = frozenset({"hi", "hi-Latn", "te", "ur", "bn", "mixed"})
+NOT_ENGLISH_LANGUAGES = frozenset({"hi", "hi-Latn", "te", "ur", "bn", "mixed", "unknown"})
 
 
 class ModelUnavailable(Exception):
@@ -160,8 +162,9 @@ class Classifier:
     def classify(self, text: str, language: str | None = None) -> ClassifierResult:
         """Label the message, or say why the model was not run.
 
-        `language` is the estimated language tag. "en", "unknown", or None leave the
-        decision to the script check alone, which is how English is classified.
+        `language` is the estimated language tag. "en" or None leave the decision to the
+        script check alone, which is how English is classified. Any other estimate,
+        including "unknown", means the model is not run.
         """
         if not self.available:
             return ClassifierResult(UNAVAILABLE, None, None)

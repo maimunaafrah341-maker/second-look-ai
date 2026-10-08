@@ -419,6 +419,11 @@ test.each(["en", "hi"] as const)("an unidentified language is not described as a
   expect(results().textContent).not.toMatch(/this language|इस भाषा/i);
   expect(results().textContent).toMatch(/This does not mean the message is safe|इसका मतलब यह नहीं है कि संदेश सुरक्षित है/);
   expect(within(results()).getByText(text.languageLabels.unknown)).toBeInTheDocument();
+  // The English-only classifier is not applied, so no spam-likeness is shown beside this summary.
+  expect(fixture.response.classifier.status).toBe("not_applicable");
+  expect(within(results()).getByText(text.classifierHeadlines.not_applicable)).toBeInTheDocument();
+  expect(within(results()).queryByText(text.classifierHeadlines.spam_like)).toBeNull();
+  expect(within(results()).queryByText(text.classifierHeadlines.not_spam_like)).toBeNull();
   expect(results().querySelector(".submitted__text")?.textContent).toBe(fixture.message);
 });
 
