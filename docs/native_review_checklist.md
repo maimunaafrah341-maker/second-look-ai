@@ -1,6 +1,8 @@
 # Native-speaker review checklist: Telugu, Urdu and Bengali
 
-Second Look checks suspicious messages for warning signs. Its Telugu, Urdu and Bengali checks were written by someone who is not a native speaker of these languages, and nobody fluent has checked them yet. Until a reviewer signs off a language, the app tells users that its checks for that language "have not yet been reviewed by native speakers".
+**Status: deferred.** Telugu, Urdu and Bengali are not part of the current Second Look release. The app does not run the checks described here, and it tells users that text in these languages is not analysed. The checks are kept, switched off, for a future release, and this review is what that release needs first.
+
+Second Look checks suspicious messages for warning signs. Its Telugu, Urdu and Bengali checks were written by someone who is not a native speaker of these languages, and nobody fluent has checked them yet.
 
 This checklist is for a fluent reader of one of the three languages. You do not need to read code. Each language takes about 45 to 60 minutes.
 
@@ -355,6 +357,6 @@ For each message, check two things: is the wording natural, and is the "should b
 
 ## After a review
 
-The project applies the fixes, reruns the tests, and only then removes the "not yet reviewed" sentence for that language. One reviewed language does not change what is said about the other two. A review confirms the wording; it does not measure how many real scams the checks catch.
+The project applies the fixes and reruns the tests. A reviewed language can then be considered for a future release; it is not switched on by the review alone. One reviewed language does not change what is said about the other two. A review confirms the wording; it does not measure how many real scams the checks catch.
 
-The files behind this checklist are `backend/app/warning_signs.py` (Part 1), `backend/app/data/term_map.json` (Part 2) and `backend/evaluation/multilingual_eval.json` (Parts 3 and 4).
+The files behind this checklist are `backend/app/warning_signs.py` (Part 1), `backend/app/data/term_map_deferred.json` (Part 2) and `backend/evaluation/multilingual_eval.json` (Parts 3 and 4).

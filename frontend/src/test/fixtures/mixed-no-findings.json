@@ -1,0 +1,27 @@
+{
+  "message": "మీ బ్యాంక్ ఖాతా ఈరోజు బ్లాక్ అవుతుంది. వెంటనే మీ పిన్ చెప్పండి. Thank you for banking with us",
+  "response": {
+    "findings": [],
+    "notice": "These are rule-based indicators only. They cannot determine whether a message is fraudulent: a message with no indicators may still be a scam, and a message with indicators may be legitimate. Verify through an official channel before acting.",
+    "guidance": {
+      "matches": [],
+      "notice": "No matching official guidance was found. The collection is small and English-only, so this does not mean the message is safe."
+    },
+    "classifier": {
+      "status": "not_applicable",
+      "label": null,
+      "model": {
+        "name": "char_tfidf_logistic_regression",
+        "training_data": "UCI SMS Spam Collection: English SMS from the UK and Singapore, around 2011",
+        "model_sha256": "bd1079ed0b0ac41ca0dead4a1c113e963f40a160301f3bd543558192b2f62561"
+      },
+      "notice": "The auxiliary classifier was not run because this message does not appear to be mainly in English, and the model was trained only on English SMS. This does not mean the message is safe."
+    },
+    "language": {
+      "detected": "mixed",
+      "method": "script_and_keyword_estimate",
+      "coverage": "partial",
+      "notice": "Estimated language: a mix of languages or scripts. English parts are checked fully; other parts may be checked only partly or not at all. This is an automatic estimate and may be wrong."
+    }
+  }
+}

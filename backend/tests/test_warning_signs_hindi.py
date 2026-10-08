@@ -222,9 +222,7 @@ def test_mixed_scam_produces_findings_from_both_languages():
 def test_language_independent_signals_still_work_in_other_scripts():
     telugu = "మీ ఖాతా బ్లాక్ అవుతుంది. Pay ₹500 now at http://bit.ly/x"
 
-    # The Telugu threat itself is found by the Telugu patterns (test_warning_signs_multilingual.py).
-    assert categories(telugu) == [URGENCY, LINK, PAYMENT_DEMAND]
-    assert evidence(telugu, URGENCY) == "ఖాతా బ్లాక్ అవుతుంది"
+    assert categories(telugu) == [LINK, PAYMENT_DEMAND]
     assert evidence(telugu, LINK) == "http://bit.ly/x"
     assert evidence(telugu, PAYMENT_DEMAND) == "Pay ₹500"
 

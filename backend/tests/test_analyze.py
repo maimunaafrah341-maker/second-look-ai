@@ -123,8 +123,7 @@ def test_analyze_guidance_sources_all_come_from_the_corpus():
     "message",
     [
         "Hi, are we still meeting for lunch at 1 pm tomorrow?",
-        # Tamil is not mapped. (Telugu now is; see test_guidance_multilingual.py.)
-        "உங்கள் வங்கி கணக்கு முடக்கப்படும், உடனே OTP சொல்லுங்கள்",
+        "మీ బ్యాంక్ ఖాతా బ్లాక్ చేయబడుతుంది, వెంటనే OTP చెప్పండి",
     ],
 )
 def test_analyze_without_matching_guidance_says_so_without_implying_safety(message):

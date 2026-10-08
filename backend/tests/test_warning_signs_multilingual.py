@@ -1,4 +1,9 @@
-"""Tests for the Telugu, Urdu and Bengali warning-sign patterns.
+"""Tests for the deferred Telugu, Urdu and Bengali warning-sign patterns.
+
+These languages are not part of the current release: the service does not run these
+patterns. They are kept for a future release, and these tests keep them working by
+calling detect_warning_signs with include_deferred_languages=True. The last tests check
+that the service itself leaves them switched off.
 
 The messages are short fixtures written for these tests and have not been reviewed by
 native speakers. They check that the listed phrases behave as intended; they are not an
@@ -21,12 +26,17 @@ from app.warning_signs import (
 client = TestClient(app)
 
 
+def detect(message: str):
+    """Detection with the deferred Telugu, Urdu and Bengali patterns switched on."""
+    return detect_warning_signs(message, include_deferred_languages=True)
+
+
 def categories(message: str) -> list[str]:
-    return [finding.category for finding in detect_warning_signs(message)]
+    return [finding.category for finding in detect(message)]
 
 
 def evidence(message: str, category: str) -> str:
-    return next(f.evidence for f in detect_warning_signs(message) if f.category == category)
+    return next(f.evidence for f in detect(message) if f.category == category)
 
 
 def assert_found(message: str, category: str, key: str) -> None:
@@ -111,7 +121,7 @@ def test_telugu_safety_advice_is_not_a_credential_request(message):
     ],
 )
 def test_ordinary_telugu_is_not_flagged(message):
-    assert detect_warning_signs(message) == []
+    assert detect(message) == []
 
 
 # --- Urdu --------------------------------------------------------------------------------
@@ -185,7 +195,7 @@ def test_urdu_safety_advice_is_not_a_credential_request(message):
     ],
 )
 def test_ordinary_urdu_is_not_flagged(message):
-    assert detect_warning_signs(message) == []
+    assert detect(message) == []
 
 
 # --- Bengali -----------------------------------------------------------------------------
@@ -260,7 +270,7 @@ def test_bengali_safety_advice_is_not_a_credential_request(message):
     ],
 )
 def test_ordinary_bengali_is_not_flagged(message):
-    assert detect_warning_signs(message) == []
+    assert detect(message) == []
 
 
 # --- Shared behaviour --------------------------------------------------------------------
@@ -287,7 +297,7 @@ def test_category_order_and_maximum_count_are_unchanged(message):
     ],
 )
 def test_evidence_respects_the_length_limit(message):
-    for finding in detect_warning_signs(message):
+    for finding in detect(message):
         assert len(finding.evidence) <= MAX_EVIDENCE_LENGTH
 
 
@@ -305,9 +315,24 @@ def test_advice_in_one_sentence_does_not_hide_a_request_in_another():
         "আপনার অ্যাকাউন্ট বন্ধ হয়ে যাবে, এখনই আপনার OTP বলুন",
     ],
 )
-def test_api_reports_findings_without_running_the_english_classifier(message):
+def test_the_service_does_not_apply_the_deferred_patterns(message):
+    # With the switch on, these are an urgency threat and a credential request.
+    assert categories(message) == [URGENCY, CREDENTIAL_REQUEST]
+    # The default, which the service uses, finds nothing in these languages.
+    assert detect_warning_signs(message) == []
+
     body = client.post("/analyze", json={"message": message}).json()
 
-    assert [finding["category"] for finding in body["findings"]] == [URGENCY, CREDENTIAL_REQUEST]
+    assert body["findings"] == []
+    assert body["guidance"]["matches"] == []
+    assert body["language"]["coverage"] == "unsupported"
+    assert "is not analysed" in body["language"]["notice"]
+    assert "does not mean the message is safe" in body["guidance"]["notice"]
     assert body["classifier"]["status"] == "not_applicable"
     assert set(body) == {"findings", "notice", "guidance", "classifier", "language"}
+
+
+def test_signals_that_need_no_language_are_still_found_in_these_scripts():
+    body = client.post("/analyze", json={"message": "మీ ఖాతా బ్లాక్ అవుతుంది. Pay ₹500 now at http://bit.ly/x"}).json()
+
+    assert [finding["category"] for finding in body["findings"]] == [LINK, PAYMENT_DEMAND]

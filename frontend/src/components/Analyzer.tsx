@@ -1,8 +1,10 @@
 import { useId, useRef, useState, type FormEvent, type Ref } from "react";
 import { MAX_MESSAGE_LENGTH } from "../api/types";
 import { EXAMPLE_MESSAGES } from "../content/copy";
+import type { ResultsLanguage } from "../lib/resultsLanguage";
 import { countCharacters } from "../lib/text";
 import { Icon } from "./Icon";
+import { ResultsLanguageSelect } from "./ResultsLanguageSelect";
 
 export type InputProblem = "blank" | "too_long" | null;
 
@@ -19,9 +21,21 @@ interface AnalyzerProps {
   busy: boolean;
   problem: InputProblem;
   textareaRef: Ref<HTMLTextAreaElement>;
+  resultsLanguage: ResultsLanguage;
+  onResultsLanguageChange: (language: ResultsLanguage) => void;
 }
 
-export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, textareaRef }: AnalyzerProps) {
+export function Analyzer({
+  value,
+  onChange,
+  onSubmit,
+  onClear,
+  busy,
+  problem,
+  textareaRef,
+  resultsLanguage,
+  onResultsLanguageChange,
+}: AnalyzerProps) {
   const ids = { input: useId(), count: useId(), error: useId(), help: useId(), examples: useId() };
   const [examplesOpen, setExamplesOpen] = useState(false);
   const examplesButton = useRef<HTMLButtonElement>(null);
@@ -75,9 +89,9 @@ export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, te
           />
           <div className="analyzer__meta">
             <p id={ids.help} className="analyzer__help">
-              Paste the text exactly as you received it. Checks are designed for English. Hindi has partial checks,
-              and Telugu, Urdu and Bengali have limited checks that native speakers have not yet reviewed. Other
-              languages get only basic checks.
+              Paste the text exactly as you received it. Checks are designed for English, with partial checks for
+              Hindi in Devanagari or in English letters. Other languages are not analysed, apart from links and
+              English words.
             </p>
             <p id={ids.count} className={`analyzer__count${overLimit ? " is-over" : ""}`} aria-live="polite">
               {count.toLocaleString("en-IN")} / {MAX_MESSAGE_LENGTH.toLocaleString("en-IN")}
@@ -102,6 +116,8 @@ export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, te
                 Clear
               </button>
             </div>
+
+            <ResultsLanguageSelect value={resultsLanguage} onChange={onResultsLanguageChange} />
 
             <div className="examples">
               <button

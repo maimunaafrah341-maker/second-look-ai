@@ -158,11 +158,15 @@ _PAYMENT_PATTERNS = _compile(
     rf"\b(?:fees?|fis|shulk|charges?)\s+(?:{_R_FILL}|(?:jama|pay)\s+{_R_DO})",
 )
 
-# --- Telugu, Urdu and Bengali -----------------------------------------------------------
-# Same approach as Hindi: a limited list of common phrases, written without review by
-# native speakers. Each script gets its own word edges, since \b is unreliable for vowel
-# signs. These patterns need the script's own words, so English and Hindi text never
-# matches them.
+# --- Deferred: Telugu, Urdu and Bengali ----------------------------------------------------
+# Not part of the current release. These patterns run only when detect_warning_signs is
+# called with include_deferred_languages=True, which the service never does. They are
+# kept, with their tests and evaluation set, for a future release after review by native
+# speakers (docs/native_review_checklist.md).
+#
+# Same approach as Hindi: a limited list of phrases, written without review by native
+# speakers. Each script gets its own word edges, since \b is unreliable for vowel signs.
+# These patterns need the script's own words, so English and Hindi text never matches them.
 
 # "Same sentence", also stopping at the Urdu full stop and question mark. The English and
 # Hindi patterns keep _GAP unchanged.
@@ -383,7 +387,7 @@ def _negated_after(message: str, match: re.Match[str]) -> bool:
     return bool(_HINDI_NEGATION_AFTER.match(message, match.end()))
 
 
-def _detect_credential_request(message: str) -> Finding | None:
+def _detect_credential_request(message: str, include_deferred_languages: bool = False) -> Finding | None:
     matches = [
         m
         for pattern in _CREDENTIAL_PATTERNS
@@ -400,7 +404,7 @@ def _detect_credential_request(message: str) -> Finding | None:
     ]
     matches += [
         m
-        for pattern, negation_inside, negation_after in _INDIC_CREDENTIAL_PATTERNS
+        for pattern, negation_inside, negation_after in (_INDIC_CREDENTIAL_PATTERNS if include_deferred_languages else ())
         for m in pattern.finditer(message)
         if not negation_inside.search(m.group())
         and not (negation_after and negation_after.match(message, m.end()))
@@ -441,12 +445,18 @@ def _detect_link(message: str) -> Finding | None:
     return _finding(LINK, urls[0])
 
 
-def detect_warning_signs(message: str) -> list[Finding]:
-    """Return at most one finding per category, in a fixed category order."""
+def detect_warning_signs(message: str, *, include_deferred_languages: bool = False) -> list[Finding]:
+    """Return at most one finding per category, in a fixed category order.
+
+    English, Hindi and romanised-Hindi patterns always run. The Telugu, Urdu and Bengali
+    patterns are deferred to a future release and run only when asked for.
+    """
+    urgency = _URGENCY_PATTERNS + (_INDIC_URGENCY_PATTERNS if include_deferred_languages else [])
+    payment = _PAYMENT_PATTERNS + (_INDIC_PAYMENT_PATTERNS if include_deferred_languages else [])
     findings = [
-        _detect_patterns(URGENCY, _URGENCY_PATTERNS + _INDIC_URGENCY_PATTERNS, message),
-        _detect_credential_request(message),
+        _detect_patterns(URGENCY, urgency, message),
+        _detect_credential_request(message, include_deferred_languages),
         _detect_link(message),
-        _detect_patterns(PAYMENT_DEMAND, _PAYMENT_PATTERNS + _INDIC_PAYMENT_PATTERNS, message),
+        _detect_patterns(PAYMENT_DEMAND, payment, message),
     ]
     return [finding for finding in findings if finding is not None]

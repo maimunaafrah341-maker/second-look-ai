@@ -1,5 +1,11 @@
 """Check warning signs and guidance retrieval on the Telugu, Urdu and Bengali set.
 
+Telugu, Urdu and Bengali are DEFERRED: they are not part of the current release, and the
+service does not run their rules or load their term map. This script reports two things:
+what the service does today with these messages (links and English words only), and what
+the deferred rules would do if switched on. The second is historical and future-facing
+engineering validation; it does not describe current support.
+
 Usage, from the repository root:
 
     python backend/evaluation/evaluate_multilingual.py
@@ -40,13 +46,14 @@ def load_items(path: Path = EVAL_SET) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))["items"]
 
 
-def evaluate_findings(items: list[dict]) -> dict:
+def evaluate_findings(items: list[dict], include_deferred_languages: bool = False) -> dict:
     counts = {"tp": 0, "fp": 0, "fn": 0}
     exact, mismatches = 0, []
 
     for item in items:
         expected = set(item["expected_findings"])
-        found = {finding.category for finding in detect_warning_signs(item["message"])}
+        findings = detect_warning_signs(item["message"], include_deferred_languages=include_deferred_languages)
+        found = {finding.category for finding in findings}
         counts["tp"] += len(expected & found)
         counts["fn"] += len(expected - found)
         counts["fp"] += len(found - expected)
@@ -63,14 +70,18 @@ def evaluate_findings(items: list[dict]) -> dict:
     return {"items": len(items), "exact": exact, **counts, "mismatches": mismatches}
 
 
-def evaluate(index: GuidanceIndex, items: list[dict]) -> dict:
-    """Results per language and split."""
+def evaluate(index: GuidanceIndex, items: list[dict], include_deferred_languages: bool = False) -> dict:
+    """Results per language and split.
+
+    Pass an index built the same way as include_deferred_languages, so the warning-sign
+    rules and the term map agree.
+    """
     results = {}
     for language in LANGUAGES:
         for split in SPLITS:
             subset = [item for item in items if item["language"] == language and item["split"] == split]
             results[(language, split)] = {
-                "findings": evaluate_findings(subset),
+                "findings": evaluate_findings(subset, include_deferred_languages),
                 "retrieval": evaluate_retrieval(index, subset),
             }
     return results
@@ -79,7 +90,19 @@ def evaluate(index: GuidanceIndex, items: list[dict]) -> dict:
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     print("Engineering validation only: written by the project, not native-reviewed.")
-    results = evaluate(GuidanceIndex.from_file(), load_items())
+    print("Telugu, Urdu and Bengali are deferred and are not supported in the current release.")
+    items = load_items()
+    for title, deferred in (
+        ("CURRENT RELEASE: what the service does today (rules for these languages are not run)", False),
+        ("DEFERRED RULES SWITCHED ON: not part of the current release", True),
+    ):
+        print(f"\n=== {title} ===")
+        index = GuidanceIndex.from_file(include_deferred_languages=deferred)
+        report(evaluate(index, items, deferred))
+    return 0
+
+
+def report(results: dict) -> None:
     for (language, split), result in results.items():
         findings, retrieval = result["findings"], result["retrieval"]
         print(f"\n{language} {split}: {findings['items']} messages")
@@ -95,7 +118,6 @@ def main() -> int:
             print(f"    {mismatch['id']}: missed {mismatch['missed']}, false {mismatch['false']}")
         for entry in retrieval["false_matches"] + retrieval["missed"]:
             print(f"    {entry['id']}: guidance returned {entry['returned']}")
-    return 0
 
 
 if __name__ == "__main__":

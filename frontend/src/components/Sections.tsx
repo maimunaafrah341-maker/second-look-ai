@@ -92,14 +92,18 @@ export function About() {
           <p>
             An experimental machine-learning signal is shown last. It was trained on older English SMS spam, so it
             is only applied to messages that appear to be in English. It is not applied to Hindi, Hindi written in
-            English letters, Telugu, Urdu, Bengali or mixed-language messages, and it never decides whether a message
-            is a scam.
+            English letters or mixed-language messages, and it never decides whether a message is a scam.
           </p>
           <p>
             The interface and the official guidance are in English. The checks are designed for English. Hindi, in
-            Devanagari and in English letters, has partial rule-based checks. Telugu, Urdu and Bengali have limited
-            rule-based checks that have not yet been reviewed by native speakers. In every language, other wording
-            and scam patterns may be missed.
+            Devanagari and in English letters, has partial rule-based checks. Other languages are not analysed: only
+            links and English words in them are checked. In every language, other wording and scam patterns may be
+            missed.
+          </p>
+          <p>
+            You can choose to see results in English or Hindi, whatever language the message is in. The Hindi text
+            was written by Second Look and has not been reviewed by a language specialist. Your message, the
+            quoted excerpts and the names of official sources are shown as they are.
           </p>
           <p>
             Finding no warning signs does not mean a message is safe. When in doubt, contact the organisation

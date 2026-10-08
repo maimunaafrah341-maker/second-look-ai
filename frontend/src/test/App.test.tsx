@@ -250,12 +250,15 @@ test("examples fill the message box", async () => {
   expect((input as HTMLTextAreaElement).value).toMatch(/Never share your OTP/);
 });
 
-test("there is no interface-language picker, and the theme control is still there", () => {
+test("there is no interface-language picker; the only language control is for results", () => {
   renderApp();
 
   expect(screen.queryByLabelText(/interface language/i)).toBeNull();
-  expect(screen.queryByRole("combobox")).toBeNull();
-  for (const script of ["हिन्दी", "తెలుగు", "اردو", "বাংলা"]) expect(document.body.textContent).not.toContain(script);
+  const selects = screen.getAllByRole("combobox");
+  expect(selects).toHaveLength(1);
+  expect(selects[0]).toHaveAccessibleName("Results language");
+  expect(within(selects[0]).getAllByRole("option").map((option) => option.textContent)).toEqual(["English", "हिन्दी"]);
+  for (const script of ["తెలుగు", "اردو", "বাংলা"]) expect(document.body.textContent).not.toContain(script);
   const theme = screen.getByRole("group", { name: "Theme" });
   expect(within(theme).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
     "System theme",
@@ -271,13 +274,16 @@ test("language support is described as it is, without overclaiming", () => {
 
   expect(text).toMatch(/The interface and the official guidance are in English/);
   expect(text).toMatch(/Hindi, in Devanagari and in English letters, has partial rule-based checks/);
-  expect(text).toMatch(/Telugu, Urdu and Bengali have limited rule-based checks that have not yet been reviewed by native speakers/);
-  expect(text).toMatch(/not applied to Hindi, Hindi written in English letters, Telugu, Urdu, Bengali or mixed-language messages/);
+  expect(text).toMatch(/Other languages are not analysed: only links and English words in them are checked/);
+  expect(text).toMatch(/not applied to Hindi, Hindi written in English letters or mixed-language messages/);
   expect(text).toMatch(/other wording and scam patterns may be missed/);
   expect(text).toMatch(/Finding no warning signs does not mean a message is safe/);
-  expect(document.body.textContent).not.toMatch(/multilingual|all languages|fully supported/i);
+  expect(text).toMatch(/The Hindi text was written by Second Look and has not been reviewed by a language specialist/);
+  // Telugu, Urdu and Bengali are deferred and are not advertised anywhere on the page.
+  expect(document.body.textContent).not.toMatch(/telugu|urdu|bengali/i);
+  expect(document.body.textContent).not.toMatch(/multilingual|all languages|fully supported|native-reviewed|verified by experts/i);
   expect(
-    screen.getByText(/Telugu, Urdu and Bengali have limited checks that native speakers have not yet reviewed/),
+    screen.getByText(/Other languages are not analysed, apart from links and English words/),
   ).toBeInTheDocument();
 });
 

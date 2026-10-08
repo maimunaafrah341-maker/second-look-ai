@@ -1,5 +1,3 @@
-import type { LanguageCoverage, LanguageTag } from "../api/types";
-
 /**
  * Count characters the way the API does (Unicode code points), so an emoji counts once.
  * JavaScript's string length counts UTF-16 units and would count some characters twice.
@@ -7,34 +5,6 @@ import type { LanguageCoverage, LanguageTag } from "../api/types";
 export function countCharacters(text: string): number {
   return [...text].length;
 }
-
-export const CATEGORY_LABELS: Record<string, string> = {
-  urgency_pressure: "Urgency or threats",
-  credential_request: "Asks for an OTP, PIN or password",
-  link: "Contains a link",
-  payment_demand: "Asks for money or a fee",
-};
-
-export function categoryLabel(category: string): string {
-  return CATEGORY_LABELS[category] ?? "Warning sign";
-}
-
-export const LANGUAGE_LABELS: Record<LanguageTag, string> = {
-  en: "English",
-  hi: "Hindi",
-  "hi-Latn": "Romanized Hindi",
-  te: "Telugu",
-  ur: "Urdu",
-  bn: "Bengali",
-  mixed: "Mixed languages",
-  unknown: "Not identified",
-};
-
-export const COVERAGE_LABELS: Record<LanguageCoverage, string> = {
-  supported: "All checks apply",
-  partial: "Partial checks",
-  unsupported: "Limited checks",
-};
 
 /** Format an ISO date (YYYY-MM-DD) as, for example, "6 Mar 2025", without time-zone shifts. */
 export function formatDate(iso: string): string {

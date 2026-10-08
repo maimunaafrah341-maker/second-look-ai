@@ -1,0 +1,82 @@
+{
+  "description": "Every fixed English text the API can return, captured from the backend code and guidance corpus. Used to check that the Hindi presentation covers all of it and notices when the English changes.",
+  "finding_explanations": {
+    "urgency_pressure": "The message uses urgency, a threat, or a deadline. Pressure to act quickly is a common tactic to stop people from checking whether a request is genuine.",
+    "credential_request": "The message asks for an OTP, PIN, password, or banking details. These are meant to be kept secret; sharing them can give someone else access to your account.",
+    "link": "The message contains a link. Do not open it unless you have confirmed the sender through an official channel.",
+    "payment_demand": "The message asks for a payment, transfer, or fee. Being asked to pay before receiving a prize, refund, parcel, or service is a common advance-fee pattern."
+  },
+  "link_traits": [
+    "has an '@' before the real address, which can disguise the destination",
+    "uses a link-shortening service, which hides the real destination",
+    "uses a numeric IP address instead of a domain name",
+    "uses an encoded (punycode) domain, which can imitate another site's name",
+    "uses unencrypted http"
+  ],
+  "findings_notice": "These are rule-based indicators only. They cannot determine whether a message is fraudulent: a message with no indicators may still be a scam, and a message with indicators may be legitimate. Verify through an official channel before acting.",
+  "guidance_notices": [
+    "These entries were retrieved by keyword similarity from a small, English-only collection of official guidance. They are not a judgement about this message, and the publishers have not reviewed or endorsed this service. Read the linked source.",
+    "No matching official guidance was found. The collection is small and English-only, so this does not mean the message is safe."
+  ],
+  "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+  "classifier_notices": {
+    "ok": "This auxiliary signal compares the message with English SMS spam from a 2011 UK and Singapore dataset. It was not trained on Indian scams and cannot tell whether this message is fraudulent. Genuine bank, OTP and delivery messages are often rated spam-like, and many scams are not. A 'not spam-like' label does not mean the message is safe. This signal does not change the warning signs or the official guidance.",
+    "not_applicable": "The auxiliary classifier was not run because this message does not appear to be mainly in English, and the model was trained only on English SMS. This does not mean the message is safe.",
+    "unavailable": "The auxiliary classifier is not available. The warning signs and official guidance are unaffected. This does not mean the message is safe."
+  },
+  "classifier_training_data": "UCI SMS Spam Collection: English SMS from the UK and Singapore, around 2011",
+  "language_notices": {
+    "en": "Estimated language: English. All of Second Look's checks are designed for English. This is an automatic estimate and may be wrong.",
+    "hi": "Estimated language: Hindi (Devanagari). A limited list of common Hindi scam phrases is checked, and some Hindi words are used to find the official guidance, which is in English. Other wording may be missed. Links, rupee amounts and English words such as OTP or KYC are still checked. This is an automatic estimate and may be wrong.",
+    "hi-Latn": "Estimated language: Hindi written in English letters. A limited list of common romanised Hindi scam phrases and spellings is checked, and some romanised Hindi words are used to find the official guidance, which is in English. Other wording or spellings may be missed. Links, rupee amounts and English words such as OTP or KYC are still checked. This is an automatic estimate and may be wrong.",
+    "mixed": "Estimated language: a mix of languages or scripts. English parts are checked fully; other parts may be checked only partly or not at all. This is an automatic estimate and may be wrong.",
+    "te": "Estimated language: Telugu. Telugu text is not analysed yet. Links, rupee amounts and English words such as OTP or KYC are still checked. This is an automatic estimate and may be wrong.",
+    "ur": "Estimated language: Urdu. Urdu text is not analysed. Links, rupee amounts and English words such as OTP or KYC are still checked. This is an automatic estimate and may be wrong.",
+    "bn": "Estimated language: Bengali. Bengali text is not analysed. Links, rupee amounts and English words such as OTP or KYC are still checked. This is an automatic estimate and may be wrong.",
+    "unknown": "The language could not be estimated, for example because the message has few or no letters or uses a script Second Look does not recognise. Links, rupee amounts and English words such as OTP or KYC are still checked."
+  },
+  "passages": [
+    {
+      "topic": "Fake CAPTCHA-filling jobs: how it works",
+      "summary": "Fraudsters advertise well-paid CAPTCHA-filling work on social media, job portals and messaging apps. Applicants are asked to pay a registration, training or software fee, then given large tasks on a fake platform. Payouts are later refused, and further payments are demanded as taxes, charges or upgrades."
+    },
+    {
+      "topic": "Fake CAPTCHA-filling jobs: warning signs and precautions",
+      "summary": "The advisory lists four warning signs: upfront payment, unrealistic earnings, delayed or denied withdrawals, and heavy emphasis on referrals. It advises researching the platform, not sharing sensitive personal or financial information, and reporting fraud immediately by calling 1930 or through the national cybercrime reporting portal."
+    },
+    {
+      "topic": "Matrimonial-platform investment fraud: how it works",
+      "summary": "Fraudsters create fake profiles on matrimonial and dating platforms, often with stolen photographs and invented professions. They build emotional trust over calls and chats. They then create urgent or emotional situations to obtain money, or push investment and cryptocurrency schemes that promise high returns."
+    },
+    {
+      "topic": "Matrimonial-platform investment fraud: precautions",
+      "summary": "The advisory recommends verifying the person's identity, including a reverse image search of their photographs. It advises not sharing private details, photographs or financial information with someone you have not met in person. It also advises not transferring money or investing on the word of an unverified online contact, especially where returns look unrealistic."
+    },
+    {
+      "topic": "Phishing: how to recognise it",
+      "summary": "The leaflet advises treating any email request for financial or personal information with suspicion, especially an urgent one. It describes common signs: threats that an account will be closed, web addresses that closely imitate a known organisation, and spelling or grammar mistakes."
+    },
+    {
+      "topic": "Phishing: what not to do",
+      "summary": "The leaflet advises against replying to messages that ask for personal or financial information, and against clicking links in unexpected messages. It advises never responding to phone calls that ask for bank details. It says an SMS asking you to confirm account information, or to reveal personal information to receive a prize, is most likely phishing."
+    },
+    {
+      "topic": "Phishing: if you have already responded",
+      "summary": "The leaflet advises changing the passwords or PINs of accounts that may be affected. It advises contacting the bank or merchant directly, without using the link in the suspicious message, and reviewing bank and card statements for transactions you did not make."
+    },
+    {
+      "topic": "Reporting cybercrime",
+      "summary": "The I4C website tells people to report cybercrime by calling the helpline 1930."
+    }
+  ],
+  "next_steps_notice": "These steps come from the linked official sources and are the same for everyone who picks the same answer. They are not advice about your particular case, and Second Look does not contact anyone or file a report for you.",
+  "next_step_situations": {
+    "not_responded": "I haven't replied, clicked or paid",
+    "clicked_link": "I clicked a link in the message",
+    "shared_details": "I shared an OTP, PIN, password, or card or bank details",
+    "lost_money": "I paid, or money has left my account"
+  },
+  "next_step_actions": [
+    "Call 1930"
+  ]
+}

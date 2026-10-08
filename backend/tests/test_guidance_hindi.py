@@ -147,8 +147,7 @@ def test_shipped_term_map_is_small_and_points_only_to_corpus_terms(index):
     data = json.loads(DEFAULT_TERM_MAP.read_text(encoding="utf-8"))
     terms = [term for group in data["concepts"].values() for term in group]
 
-    # Hindi, romanised Hindi, Telugu, Urdu and Bengali together.
-    assert len(terms) <= 300
+    assert len(terms) <= 120
     assert set(data["concepts"]) <= index.vocabulary
     # The map is not used to restate English words.
     for word in ("account", "otp", "fee", "fees", "block", "band", "link", "card", "registration", "delivery"):

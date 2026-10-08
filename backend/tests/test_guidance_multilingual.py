@@ -1,4 +1,9 @@
-"""Tests for Telugu, Urdu and Bengali guidance retrieval through the term map.
+"""Tests for the deferred Telugu, Urdu and Bengali guidance retrieval.
+
+These languages are not part of the current release: the service does not load their
+term map. It is kept for a future release, and these tests keep it working with an index
+built with include_deferred_languages=True. The last tests check that the service's own
+index leaves it out.
 
 The messages are short fixtures written for these tests and have not been reviewed by
 native speakers. They check intended behaviour; they are not a measurement of retrieval
@@ -7,7 +12,8 @@ accuracy.
 
 import pytest
 
-from app.guidance import DEFAULT_TERM_MAP, GuidanceIndex, TermMap, load_corpus
+import app.main as main_module
+from app.guidance import DEFAULT_TERM_MAP, DEFERRED_TERM_MAP, GuidanceIndex, TermMap, load_corpus
 
 PHISHING = "certin-avoid-phishing"
 CAPTCHA_JOBS = "i4c-captcha-jobs-2025"
@@ -16,7 +22,8 @@ REPORTING = "i4c-home"
 
 @pytest.fixture(scope="module")
 def index() -> GuidanceIndex:
-    return GuidanceIndex.from_file()
+    """An index with the deferred Telugu, Urdu and Bengali map switched on."""
+    return GuidanceIndex.from_file(include_deferred_languages=True)
 
 
 def first_source(index: GuidanceIndex, message: str) -> str | None:
@@ -125,7 +132,7 @@ def test_matches_cite_the_same_validated_sources(index):
 
 
 def test_term_map_expands_words_in_each_script(index):
-    term_map = TermMap.from_file(DEFAULT_TERM_MAP, index.vocabulary)
+    term_map = TermMap.from_file(DEFAULT_TERM_MAP, index.vocabulary, DEFERRED_TERM_MAP)
 
     assert term_map.expand("ఓటీపీ") == ["otp"]
     assert term_map.expand("او ٹی پی") == ["otp"]
@@ -133,3 +140,30 @@ def test_term_map_expands_words_in_each_script(index):
     assert term_map.expand("ఖాతా") == ["account"]
     assert term_map.expand("اکاؤنٹ") == ["account"]
     assert term_map.expand("অ্যাকাউন্ট") == ["account"]
+
+
+# --- The service leaves these languages out ---------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "మీ ఖాతా బ్లాక్ అవుతుంది, వెంటనే మీ ఓటీపీ చెప్పండి",
+        "آپ کا اکاؤنٹ بلاک ہو جائے گا، فوراً اپنا او ٹی پی بتائیں",
+        "আপনার অ্যাকাউন্ট ব্লক হয়ে যাবে, এখনই আপনার ওটিপি বলুন",
+    ],
+)
+def test_the_default_index_and_the_service_retrieve_nothing_for_these_languages(index, message):
+    # With the deferred map these reach phishing guidance; by default they reach nothing.
+    assert index.search(message)
+    assert GuidanceIndex.from_file().search(message) == []
+    assert main_module.guidance_index.search(message) == []
+
+
+def test_the_default_term_map_has_no_telugu_urdu_or_bengali_words(index):
+    default = TermMap.from_file(DEFAULT_TERM_MAP, index.vocabulary)
+
+    for word in ("ఓటీపీ", "او ٹی پی", "ওটিপি", "ఖాతా", "اکاؤنٹ", "অ্যাকাউন্ট"):
+        assert default.expand(word) == []
+    text = DEFAULT_TERM_MAP.read_text(encoding="utf-8")
+    assert not any("\u0c00" <= c <= "\u0c7f" or "\u0980" <= c <= "\u09ff" or "\u0600" <= c <= "\u06ff" for c in text)

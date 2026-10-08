@@ -6,6 +6,7 @@ import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
 import { Results } from "./components/Results";
 import { About, AnalyzingState, ErrorState, Footer, HowItWorks, SafetyTips } from "./components/Sections";
+import { useResultsLanguage } from "./lib/resultsLanguage";
 import { countCharacters } from "./lib/text";
 
 export const SLOW_AFTER_MS = 8000;
@@ -48,6 +49,8 @@ export default function App() {
   const [phase, dispatch] = useReducer(reducer, { kind: "idle" });
   const [text, setText] = useState("");
   const [problem, setProblem] = useState<InputProblem>(null);
+  // How results are presented. It is never sent to the API and does not change the analysis.
+  const [resultsLanguage, setResultsLanguage] = useResultsLanguage();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -125,11 +128,20 @@ export default function App() {
           busy={phase.kind === "analyzing"}
           problem={problem}
           textareaRef={textareaRef}
+          resultsLanguage={resultsLanguage}
+          onResultsLanguageChange={setResultsLanguage}
         />
         {phase.kind === "analyzing" && <AnalyzingState slow={phase.slow} />}
         {phase.kind === "error" && <ErrorState kind={phase.error} onRetry={analyze} />}
         {phase.kind === "result" && (
-          <Results ref={resultsHeadingRef} message={phase.message} data={phase.data} onCheckAnother={clear} />
+          <Results
+            ref={resultsHeadingRef}
+            message={phase.message}
+            data={phase.data}
+            language={resultsLanguage}
+            onLanguageChange={setResultsLanguage}
+            onCheckAnother={clear}
+          />
         )}
         <HowItWorks />
         <SafetyTips />

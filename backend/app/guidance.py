@@ -25,6 +25,8 @@ from app.language import ROMAN_HINDI_CUES
 
 DEFAULT_CORPUS = Path(__file__).resolve().parent / "data" / "guidance.json"
 DEFAULT_TERM_MAP = Path(__file__).resolve().parent / "data" / "term_map.json"
+# Telugu, Urdu and Bengali entries, deferred to a future release. The service does not load it.
+DEFERRED_TERM_MAP = Path(__file__).resolve().parent / "data" / "term_map_deferred.json"
 
 # Only sources whose site policy allows linking, or states no restriction.
 ALLOWED_HOSTS = frozenset({"i4c.mha.gov.in", "www.csk.gov.in"})
@@ -215,34 +217,9 @@ def load_corpus(path: Path = DEFAULT_CORPUS) -> tuple[dict[str, Source], list[Pa
     return sources, passages
 
 
-# Words in Devanagari (letters and vowel signs, not the danda) or in Latin letters, and
-# words in the Telugu, Bengali and Arabic (Urdu) scripts. A word in those three scripts
-# must start with one of its letters, so a stray zero-width joiner is never a word.
-_UR_LETTERS = "ؐ-ؚؠ-ٟٮ-ۓە-ۯۺ-ۿ"
-_HINDI_OR_LATIN_WORD = re.compile(
-    r"[ऀ-ॣॱ-ॿ]+|[a-z0-9]+"
-    "|[ఀ-౿][ఀ-౿‌‍]*"
-    "|[ঀ-৿][ঀ-৿‌‍]*"
-    f"|[{_UR_LETTERS}][{_UR_LETTERS}‌‍]*"
-)
-_SENTENCE = re.compile(r"[^.!?।۔؟\n]+")
-# The same Telugu, Bengali or Urdu word can be typed in more than one way: with or without
-# zero-width joiners, Bengali য় ড় ঢ় as one character or as letter plus nukta, and Urdu
-# with Arabic-keyboard letters (ك ي ى ه for ک ی ہ). Words in those scripts are reduced to
-# one spelling. Devanagari and Latin words are left exactly as they are.
-_ONE_SPELLING = str.maketrans(
-    {
-        "‌": None,
-        "‍": None,
-        "ড়": "ড়",
-        "ঢ়": "ঢ়",
-        "য়": "য়",
-        "ك": "ک",
-        "ي": "ی",
-        "ى": "ی",
-        "ه": "ہ",
-    }
-)
+# Words in Devanagari (letters and vowel signs, not the danda) or in Latin letters.
+_HINDI_OR_LATIN_WORD = re.compile(r"[ऀ-ॣॱ-ॿ]+|[a-z0-9]+")
+_SENTENCE = re.compile(r"[^.!?।\n]+")
 # Hindi negation usually follows the object ("OTP किसी को न बताएं", "OTP share mat
 # karo"), so the English rule of ignoring text after "never" does not work. A sentence
 # with a Hindi negation word is left out of matching entirely: a missed match is safer
@@ -252,45 +229,88 @@ _ROMAN_NEGATION = frozenset({"nahi", "nahin", "nhi"})
 # "na" and "mat" are also English or abbreviations, so they count only next to other
 # romanised-Hindi words.
 _ROMAN_NEGATION_IF_HINDI = frozenset({"na", "naa", "mat"})
-# Telugu, Urdu and Bengali negation words, treated the same way. Telugu also forms
+
+
+# --- Deferred: Telugu, Urdu and Bengali ----------------------------------------------------
+# Not part of the current release. Nothing below is used unless an index is built with
+# include_deferred_languages=True, which the service never does. It is kept, with its tests
+# and evaluation set, for a future release after review by native speakers
+# (docs/native_review_checklist.md).
+#
+# Words in the Telugu, Bengali and Arabic (Urdu) scripts as well. A word in those three
+# scripts must start with one of its letters, so a stray zero-width joiner is never a word.
+_UR_LETTERS = "\u0610-\u061a\u0620-\u065f\u066e-\u06d3\u06d5-\u06ef\u06fa-\u06ff"
+_DEFERRED_WORD = re.compile(
+    r"[ऀ-ॣॱ-ॿ]+|[a-z0-9]+"
+    "|[\u0c00-\u0c7f][\u0c00-\u0c7f\u200c\u200d]*"
+    "|[\u0980-\u09ff][\u0980-\u09ff\u200c\u200d]*"
+    f"|[{_UR_LETTERS}][{_UR_LETTERS}\u200c\u200d]*"
+)
+_DEFERRED_SENTENCE = re.compile(r"[^.!?।۔؟\n]+")
+# The same Telugu, Bengali or Urdu word can be typed in more than one way: with or without
+# zero-width joiners, Bengali য় ড় ঢ় as one character or as letter plus nukta, and Urdu
+# with Arabic-keyboard letters (ك ي ى ه for ک ی ہ). Words in those scripts are reduced to
+# one spelling. Devanagari and Latin words are left exactly as they are.
+_ONE_SPELLING = str.maketrans(
+    {
+        "\u200c": None,
+        "\u200d": None,
+        "\u09dc": "\u09a1\u09bc",
+        "\u09dd": "\u09a2\u09bc",
+        "\u09df": "\u09af\u09bc",
+        "ك": "ک",
+        "ي": "ی",
+        "ى": "ی",
+        "ه": "ہ",
+    }
+)
+# Telugu, Urdu and Bengali negation words, treated like the Hindi ones. Telugu also forms
 # "don't" with a suffix (చెప్పకండి, పంపవద్దు), checked in _is_hindi_advice.
-_OTHER_NEGATION = frozenset(
+_DEFERRED_NEGATION = frozenset(
     word.translate(_ONE_SPELLING)
     for word in ("వద్దు", "కూడదు", "ఎప్పుడూ", "ఎవరికీ", "ఎవరితోనూ", "نہ", "مت", "نہیں", "کبھی", "না", "কখনো", "কখনও", "নয়")
 )
 
 
 def _one_spelling(word: str) -> str:
-    return word.translate(_ONE_SPELLING) if "؀" <= word[0] < "ऀ" or word[0] >= "ঀ" else word
+    return word.translate(_ONE_SPELLING) if "\u0600" <= word[0] < "\u0900" or word[0] >= "\u0980" else word
 
 
-def _hindi_words(text: str) -> list[str]:
-    return [_one_spelling(word) for word in _HINDI_OR_LATIN_WORD.findall(text.lower())]
+def _hindi_words(text: str, deferred: bool = False) -> list[str]:
+    if not deferred:
+        return _HINDI_OR_LATIN_WORD.findall(text.lower())
+    return [_one_spelling(word) for word in _DEFERRED_WORD.findall(text.lower())]
 
 
-def _is_hindi_advice(sentence: str) -> bool:
-    words = set(_hindi_words(sentence))
-    if words & (_DEVANAGARI_NEGATION | _ROMAN_NEGATION | _OTHER_NEGATION):
+def _is_hindi_advice(sentence: str, deferred: bool = False) -> bool:
+    words = set(_hindi_words(sentence, deferred))
+    if words & (_DEVANAGARI_NEGATION | _ROMAN_NEGATION):
         return True
-    if any(word.endswith("కండి") or "వద్దు" in word for word in words):
+    if deferred and (words & _DEFERRED_NEGATION or any(word.endswith("కండి") or "వద్దు" in word for word in words)):
         return True
     return bool(words & _ROMAN_NEGATION_IF_HINDI) and bool(words & ROMAN_HINDI_CUES)
 
 
-def _drop_hindi_advice(text: str) -> str:
+def _drop_hindi_advice(text: str, deferred: bool = False) -> str:
     # Only advice sentences are blanked; everything else, including links, is kept as is.
-    return _SENTENCE.sub(lambda sentence: " " if _is_hindi_advice(sentence.group()) else sentence.group(), text)
+    sentences = _DEFERRED_SENTENCE if deferred else _SENTENCE
+    return sentences.sub(lambda sentence: " " if _is_hindi_advice(sentence.group(), deferred) else sentence.group(), text)
 
 
 class TermMap:
-    """Maps Hindi, romanised-Hindi, Telugu, Urdu and Bengali words and short phrases to existing corpus terms."""
+    """Maps Hindi and romanised-Hindi words and short phrases to existing corpus terms.
 
-    def __init__(self, phrases: dict[tuple[str, ...], str]):
+    With a deferred map as well, it also maps the Telugu, Urdu and Bengali entries kept for
+    a future release. The service does not do this.
+    """
+
+    def __init__(self, phrases: dict[tuple[str, ...], str], deferred: bool = False):
         self._phrases = phrases
+        self._deferred = deferred
         self._longest = max((len(phrase) for phrase in phrases), default=0)
 
-    @classmethod
-    def from_file(cls, path: Path, vocabulary: set[str]) -> "TermMap":
+    @staticmethod
+    def _read_concepts(path: Path) -> dict:
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
         except OSError as error:
@@ -300,18 +320,26 @@ class TermMap:
         concepts = data.get("concepts") if isinstance(data, dict) else None
         if not isinstance(concepts, dict) or not concepts:
             raise CorpusError("Term map must have a non-empty 'concepts' object.")
+        return concepts
+
+    @classmethod
+    def from_file(cls, path: Path, vocabulary: set[str], deferred_path: Path | None = None) -> "TermMap":
+        deferred = deferred_path is not None
+        entries = list(cls._read_concepts(path).items())
+        if deferred:
+            entries += list(cls._read_concepts(deferred_path).items())
 
         phrases: dict[tuple[str, ...], str] = {}
-        for concept, terms in concepts.items():
+        for concept, terms in entries:
             if tokenize(concept) != [concept] or concept not in vocabulary:
                 raise CorpusError(f"Term map concept {concept!r} is not a retrieval term in the corpus.")
             if not isinstance(terms, list) or not terms:
                 raise CorpusError(f"Term map concept {concept!r} needs a non-empty list of terms.")
             for term in terms:
-                words = tuple(_hindi_words(term)) if isinstance(term, str) else ()
-                # Spelling variants are reduced as in _hindi_words; Devanagari and Latin
-                # terms are compared exactly as before.
-                if not words or "".join(words) != "".join(str(term).lower().split()).translate(_ONE_SPELLING):
+                words = tuple(_hindi_words(term, deferred)) if isinstance(term, str) else ()
+                written = "".join(str(term).lower().split())
+                # Deferred entries are compared after reducing spelling variants, as in _hindi_words.
+                if not words or "".join(words) != (written.translate(_ONE_SPELLING) if deferred else written):
                     raise CorpusError(f"Term map entry {term!r} for {concept!r} is not a plain word or phrase.")
                 # A single Latin word that is already a corpus term would change English results.
                 if len(words) == 1 and words[0].isascii() and words[0] in vocabulary:
@@ -319,11 +347,11 @@ class TermMap:
                 if words in phrases:
                     raise CorpusError(f"Term map entry {term!r} appears more than once.")
                 phrases[words] = concept
-        return cls(phrases)
+        return cls(phrases, deferred)
 
     def expand(self, text: str) -> list[str]:
         """Return the corpus terms for every mapped word or phrase found in the text."""
-        words = _hindi_words(text)
+        words = _hindi_words(text, self._deferred)
         found = []
         for start in range(len(words)):
             for length in range(1, min(self._longest, len(words) - start) + 1):
@@ -357,6 +385,8 @@ class GuidanceIndex:
         }
         self._vectors = [self._weigh(document) for document in documents]
         self._term_map = TermMap({})
+        # True only for an index built on request with the deferred Telugu, Urdu and Bengali map.
+        self._deferred = False
 
     @property
     def vocabulary(self) -> set[str]:
@@ -374,10 +404,22 @@ class GuidanceIndex:
         return self
 
     @classmethod
-    def from_file(cls, path: Path = DEFAULT_CORPUS, term_map_path: Path | None = DEFAULT_TERM_MAP) -> "GuidanceIndex":
+    def from_file(
+        cls,
+        path: Path = DEFAULT_CORPUS,
+        term_map_path: Path | None = DEFAULT_TERM_MAP,
+        include_deferred_languages: bool = False,
+    ) -> "GuidanceIndex":
+        """Build the index. The service uses the defaults: Hindi and romanised-Hindi terms only.
+
+        include_deferred_languages also loads the Telugu, Urdu and Bengali map kept for a
+        future release. It is for tests and evaluation, not for serving.
+        """
         index = cls(*load_corpus(path))
         if term_map_path is not None:
-            index.use_term_map(TermMap.from_file(term_map_path, index.vocabulary))
+            deferred_path = DEFERRED_TERM_MAP if include_deferred_languages else None
+            index.use_term_map(TermMap.from_file(term_map_path, index.vocabulary, deferred_path))
+            index._deferred = include_deferred_languages
         return index
 
     def _weigh(self, counts: Counter) -> dict[str, float]:
@@ -391,7 +433,7 @@ class GuidanceIndex:
 
     def search(self, text: str, limit: int = MAX_MATCHES) -> list[Match]:
         """Return the most similar passages, or an empty list when nothing is similar enough."""
-        text = _drop_hindi_advice(_ADVICE.sub(" ", text))
+        text = _drop_hindi_advice(_ADVICE.sub(" ", text), self._deferred)
         tokens = tokenize(text) + self._term_map.expand(text)
         if _LINK_IN_TEXT.search(text):
             tokens.append(_LINK_TERM)  # a web address in the message counts as the word "link"
