@@ -70,3 +70,29 @@ export interface AnalyzeResponse {
   classifier: ClassifierSection;
   language: LanguageSection;
 }
+
+// Types for GET /next-steps: fixed steps for what happened after the message.
+
+export interface StepAction {
+  label: string;
+  href: string;
+}
+
+export interface NextStep {
+  topic: string;
+  summary: string;
+  summary_note: string;
+  source: GuidanceSource;
+  action: StepAction | null;
+}
+
+export interface NextStepSituation {
+  id: string;
+  label: string;
+  steps: NextStep[];
+}
+
+export interface NextStepsResponse {
+  situations: NextStepSituation[];
+  notice: string;
+}

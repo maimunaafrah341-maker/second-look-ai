@@ -1,0 +1,119 @@
+{
+  "situations": [
+    {
+      "id": "not_responded",
+      "label": "I haven't replied, clicked or paid",
+      "steps": [
+        {
+          "topic": "Phishing: what not to do",
+          "summary": "The leaflet advises against replying to messages that ask for personal or financial information, and against clicking links in unexpected messages. It advises never responding to phone calls that ask for bank details. It says an SMS asking you to confirm account information, or to reveal personal information to receive a prize, is most likely phishing.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Avoid Phishing Attacks",
+            "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+            "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "Don'ts"
+          },
+          "action": null
+        }
+      ]
+    },
+    {
+      "id": "clicked_link",
+      "label": "I clicked a link in the message",
+      "steps": [
+        {
+          "topic": "Phishing: if you have already responded",
+          "summary": "The leaflet advises changing the passwords or PINs of accounts that may be affected. It advises contacting the bank or merchant directly, without using the link in the suspicious message, and reviewing bank and card statements for transactions you did not make.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Avoid Phishing Attacks",
+            "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+            "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "What should I do if I think I've responded to a phishing scam?"
+          },
+          "action": null
+        }
+      ]
+    },
+    {
+      "id": "shared_details",
+      "label": "I shared an OTP, PIN, password, or card or bank details",
+      "steps": [
+        {
+          "topic": "Phishing: if you have already responded",
+          "summary": "The leaflet advises changing the passwords or PINs of accounts that may be affected. It advises contacting the bank or merchant directly, without using the link in the suspicious message, and reviewing bank and card statements for transactions you did not make.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Avoid Phishing Attacks",
+            "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+            "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "What should I do if I think I've responded to a phishing scam?"
+          },
+          "action": null
+        },
+        {
+          "topic": "Reporting cybercrime",
+          "summary": "The I4C website tells people to report cybercrime by calling the helpline 1930.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Indian Cybercrime Coordination Centre",
+            "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+            "url": "https://i4c.mha.gov.in/",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "Home page banner"
+          },
+          "action": {
+            "label": "Call 1930",
+            "href": "tel:1930"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lost_money",
+      "label": "I paid, or money has left my account",
+      "steps": [
+        {
+          "topic": "Reporting cybercrime",
+          "summary": "The I4C website tells people to report cybercrime by calling the helpline 1930.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Indian Cybercrime Coordination Centre",
+            "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+            "url": "https://i4c.mha.gov.in/",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "Home page banner"
+          },
+          "action": {
+            "label": "Call 1930",
+            "href": "tel:1930"
+          }
+        },
+        {
+          "topic": "Phishing: if you have already responded",
+          "summary": "The leaflet advises changing the passwords or PINs of accounts that may be affected. It advises contacting the bank or merchant directly, without using the link in the suspicious message, and reviewing bank and card statements for transactions you did not make.",
+          "summary_note": "Summary written by Second Look. It is not a quotation from the source.",
+          "source": {
+            "title": "Avoid Phishing Attacks",
+            "publisher": "Indian Computer Emergency Response Team (CERT-In), Ministry of Electronics and Information Technology, Government of India",
+            "url": "https://www.csk.gov.in/documents/Phishing.pdf",
+            "published": null,
+            "retrieved": "2026-10-04",
+            "section": "What should I do if I think I've responded to a phishing scam?"
+          },
+          "action": null
+        }
+      ]
+    }
+  ],
+  "notice": "These steps come from the linked official sources and are the same for everyone who picks the same answer. They are not advice about your particular case, and Second Look does not contact anyone or file a report for you."
+}

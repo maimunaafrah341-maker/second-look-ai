@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.classifier import NOT_APPLICABLE, UNAVAILABLE, Classifier
 from app.guidance import GuidanceIndex
 from app.language import estimate_language
+from app.next_steps import resolve as resolve_next_steps
 from app.warning_signs import Finding, detect_warning_signs
 
 MAX_MESSAGE_LENGTH = 5000
@@ -46,6 +47,12 @@ CLASSIFIER_UNAVAILABLE_NOTICE = (
     "unaffected. This does not mean the message is safe."
 )
 
+NEXT_STEPS_NOTICE = (
+    "These steps come from the linked official sources and are the same for everyone who "
+    "picks the same answer. They are not advice about your particular case, and Second Look "
+    "does not contact anyone or file a report for you."
+)
+
 app = FastAPI(title="Second Look", version="0.1.0")
 
 # Browser origins allowed to call the API from another site, comma-separated (for example
@@ -70,6 +77,9 @@ guidance_index = GuidanceIndex.from_file()
 # Also loaded once at startup, but optional: if the model cannot be loaded safely, the
 # classifier section reports "unavailable" and the rest of /analyze keeps working.
 classifier = Classifier.load()
+# Fixed "what happened next?" steps, looked up once from the same verified passages. A
+# missing or unverified passage stops the service from starting.
+next_step_situations = resolve_next_steps(guidance_index)
 
 
 class AnalyzeRequest(BaseModel):
@@ -122,6 +132,30 @@ class LanguageSection(BaseModel):
     detected: Literal["en", "hi", "hi-Latn", "te", "ur", "bn", "mixed", "unknown"]
     method: Literal["script_and_keyword_estimate"]
     coverage: Literal["supported", "partial", "unsupported"]
+    notice: str
+
+
+class StepAction(BaseModel):
+    label: str
+    href: str
+
+
+class NextStep(BaseModel):
+    topic: str
+    summary: str
+    summary_note: str
+    source: GuidanceSource
+    action: StepAction | None
+
+
+class NextStepSituation(BaseModel):
+    id: str
+    label: str
+    steps: list[NextStep]
+
+
+class NextStepsResponse(BaseModel):
+    situations: list[NextStepSituation]
     notice: str
 
 
@@ -185,6 +219,38 @@ def run_classifier(message: str, language: str) -> ClassifierSection:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/next-steps")
+def next_steps() -> NextStepsResponse:
+    # The same for every caller: nothing about a message is sent to or used by this route.
+    return NextStepsResponse(
+        situations=[
+            NextStepSituation(
+                id=situation.id,
+                label=situation.label,
+                steps=[
+                    NextStep(
+                        topic=step.passage.topic,
+                        summary=step.passage.summary,
+                        summary_note=SUMMARY_NOTE,
+                        source=GuidanceSource(
+                            title=step.source.title,
+                            publisher=step.source.publisher,
+                            url=step.source.url,
+                            published=step.source.published,
+                            retrieved=step.source.retrieved,
+                            section=step.passage.section,
+                        ),
+                        action=StepAction(label=step.action.label, href=step.action.href) if step.action else None,
+                    )
+                    for step in steps
+                ],
+            )
+            for situation, steps in next_step_situations
+        ],
+        notice=NEXT_STEPS_NOTICE,
+    )
 
 
 @app.post("/analyze")

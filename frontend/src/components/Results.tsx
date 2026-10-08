@@ -1,5 +1,14 @@
-import { forwardRef, type ReactNode } from "react";
-import type { AnalyzeResponse, ClassifierSection, Finding, GuidanceMatch, LanguageSection } from "../api/types";
+import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { fetchNextSteps } from "../api/client";
+import type {
+  AnalyzeResponse,
+  ClassifierSection,
+  Finding,
+  GuidanceMatch,
+  LanguageSection,
+  NextStepsResponse,
+  StepAction,
+} from "../api/types";
 import { SAFETY_STEPS, SAFETY_STEPS_SOURCE } from "../content/copy";
 import { summarizeResult } from "../lib/status";
 import { categoryLabel, COVERAGE_LABELS, formatDate, highlightEvidence, LANGUAGE_LABELS } from "../lib/text";
@@ -69,7 +78,15 @@ function WarningSignCard({ finding }: { finding: Finding }) {
   );
 }
 
-function GuidanceCard({ match }: { match: GuidanceMatch }) {
+// Only a plain phone link from the API is ever turned into a button.
+const PHONE_LINK = /^tel:\d{3,15}$/;
+
+interface GuidanceCardProps {
+  match: Pick<GuidanceMatch, "topic" | "summary" | "summary_note" | "source">;
+  action?: StepAction | null;
+}
+
+function GuidanceCard({ match, action }: GuidanceCardProps) {
   const { source } = match;
   return (
     <li className="guidance card">
@@ -100,12 +117,116 @@ function GuidanceCard({ match }: { match: GuidanceMatch }) {
           <dd>{formatDate(source.retrieved)}</dd>
         </div>
       </dl>
+      {action && PHONE_LINK.test(action.href) && (
+        <a className="button button--primary button--compact guidance__action" href={action.href}>
+          <Icon name="alert" size={16} />
+          {action.label}
+        </a>
+      )}
       <a className="guidance__link" href={source.url} target="_blank" rel="noopener noreferrer">
         View official source
         <Icon name="external" size={15} />
         <span className="visually-hidden"> (opens in a new tab)</span>
       </a>
     </li>
+  );
+}
+
+type NextStepsState = { status: "idle" | "loading" | "error" } | { status: "ready"; data: NextStepsResponse };
+
+/**
+ * "What happened next?": the person picks what happened and sees the matching steps from
+ * the official guidance. The choice stays in the browser; it is never sent anywhere.
+ */
+function NextSteps() {
+  const [state, setState] = useState<NextStepsState>({ status: "idle" });
+  const [selected, setSelected] = useState<string | null>(null);
+  const groupName = useId();
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const load = async () => {
+    setState({ status: "loading" });
+    try {
+      const data = await fetchNextSteps();
+      if (mounted.current) setState({ status: "ready", data });
+    } catch {
+      if (mounted.current) setState({ status: "error" });
+    }
+  };
+
+  const situation = state.status === "ready" ? state.data.situations.find((item) => item.id === selected) : undefined;
+
+  return (
+    <section className="result-section" aria-labelledby="next-title">
+      <SectionHeading id="next-title" step="4 · If something already happened" title="What happened next?">
+        Pick the closest answer to see what the official sources say to do. Your answer stays in your browser.
+      </SectionHeading>
+
+      {state.status === "idle" && (
+        <div>
+          <button type="button" className="button button--secondary" onClick={load}>
+            Choose what happened
+            <Icon name="chevronDown" size={16} />
+          </button>
+        </div>
+      )}
+      {state.status === "loading" && (
+        <p className="empty-note card card--muted" role="status">
+          <span className="spinner" aria-hidden="true" />
+          Loading the options…
+        </p>
+      )}
+      {state.status === "error" && (
+        <div className="empty-note card card--muted next-steps__error" role="alert">
+          <p>We couldn't load these steps right now. The general steps above still apply.</p>
+          <button type="button" className="button button--secondary button--compact" onClick={load}>
+            <Icon name="refresh" size={16} />
+            Try again
+          </button>
+        </div>
+      )}
+      {state.status === "ready" && (
+        <>
+          <fieldset className="next-steps__options">
+            <legend className="visually-hidden">What happened next?</legend>
+            {state.data.situations.map((item) => (
+              <label key={item.id} className={`next-steps__option card${selected === item.id ? " is-selected" : ""}`}>
+                <input
+                  type="radio"
+                  name={groupName}
+                  value={item.id}
+                  checked={selected === item.id}
+                  onChange={() => setSelected(item.id)}
+                />
+                <span>{item.label}</span>
+              </label>
+            ))}
+          </fieldset>
+          <div aria-live="polite">
+            {situation && (
+              <div className="result-section">
+                <ol className="guidance-list">
+                  {situation.steps.map((step) => (
+                    <GuidanceCard key={step.topic} match={step} action={step.action} />
+                  ))}
+                </ol>
+                <p className="section-notice">
+                  <Icon name="info" size={15} />
+                  {state.data.notice}
+                </p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -219,6 +340,8 @@ export const Results = forwardRef<HTMLHeadingElement, ResultsProps>(function Res
           </ol>
           <p className="section-notice">{SAFETY_STEPS_SOURCE}</p>
         </section>
+
+        <NextSteps />
 
         <ClassifierSignal classifier={data.classifier} />
 

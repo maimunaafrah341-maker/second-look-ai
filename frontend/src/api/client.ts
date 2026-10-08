@@ -1,4 +1,4 @@
-import type { AnalyzeResponse } from "./types";
+import type { AnalyzeResponse, NextStepsResponse } from "./types";
 
 export type ApiErrorKind = "blank" | "too_long" | "invalid" | "network" | "timeout" | "server";
 
@@ -85,5 +85,55 @@ export async function analyzeMessage(message: string, options: AnalyzeOptions = 
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+function looksLikeNextSteps(body: unknown): body is NextStepsResponse {
+  const value = body as Partial<NextStepsResponse> | null;
+  return Boolean(
+    value &&
+      typeof value.notice === "string" &&
+      Array.isArray(value.situations) &&
+      value.situations.length > 0 &&
+      value.situations.every(
+        (situation) => typeof situation?.id === "string" && typeof situation.label === "string" && Array.isArray(situation.steps),
+      ),
+  );
+}
+
+let nextStepsCache: NextStepsResponse | null = null;
+
+/** Forget the cached next steps. Used by tests. */
+export function clearNextStepsCache(): void {
+  nextStepsCache = null;
+}
+
+/**
+ * Load the fixed "what happened next?" steps from GET /next-steps. Nothing about the
+ * message or the person's answer is sent. The steps are the same for everyone, so a
+ * successful response is kept for the rest of the visit.
+ */
+export async function fetchNextSteps(timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<NextStepsResponse> {
+  if (nextStepsCache) return nextStepsCache;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase()}/next-steps`, { headers: { Accept: "application/json" }, signal: controller.signal });
+    } catch {
+      throw new AnalyzeError(timedOut ? "timeout" : "network");
+    }
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok || !looksLikeNextSteps(body)) throw new AnalyzeError("server", response.status);
+    nextStepsCache = body;
+    return body;
+  } finally {
+    clearTimeout(timer);
   }
 }

@@ -22,7 +22,7 @@ interface AnalyzerProps {
 }
 
 export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, textareaRef }: AnalyzerProps) {
-  const ids = { input: useId(), count: useId(), error: useId(), help: useId(), examples: useId(), upload: useId() };
+  const ids = { input: useId(), count: useId(), error: useId(), help: useId(), examples: useId() };
   const [examplesOpen, setExamplesOpen] = useState(false);
   const examplesButton = useRef<HTMLButtonElement>(null);
   const count = countCharacters(value);
@@ -75,8 +75,9 @@ export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, te
           />
           <div className="analyzer__meta">
             <p id={ids.help} className="analyzer__help">
-              Paste the text exactly as you received it. Checks are designed for English, with partial support for
-              Hindi; other languages get only basic checks.
+              Paste the text exactly as you received it. Checks are designed for English. Hindi has partial checks,
+              and Telugu, Urdu and Bengali have limited checks that native speakers have not yet reviewed. Other
+              languages get only basic checks.
             </p>
             <p id={ids.count} className={`analyzer__count${overLimit ? " is-over" : ""}`} aria-live="polite">
               {count.toLocaleString("en-IN")} / {MAX_MESSAGE_LENGTH.toLocaleString("en-IN")}
@@ -100,20 +101,6 @@ export function Analyzer({ value, onChange, onSubmit, onClear, busy, problem, te
               <button type="button" className="button button--ghost" onClick={onClear} disabled={busy || value === ""}>
                 Clear
               </button>
-              <button
-                type="button"
-                className="button button--secondary"
-                aria-disabled="true"
-                aria-describedby={ids.upload}
-                onClick={(event) => event.preventDefault()}
-              >
-                <Icon name="upload" size={18} />
-                Upload screenshot
-                <span className="pill">Not supported — paste the text instead</span>
-              </button>
-              <span id={ids.upload} className="visually-hidden">
-                Screenshot checking is not available yet. Copy the message text and paste it instead.
-              </span>
             </div>
 
             <div className="examples">

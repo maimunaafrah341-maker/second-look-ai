@@ -2,11 +2,13 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import App, { SLOW_AFTER_MS } from "../App";
+import { clearNextStepsCache } from "../api/client";
 import type { AnalyzeResponse } from "../api/types";
 import { ThemeProvider } from "../lib/theme";
 import benign from "./fixtures/benign.json";
 import englishScam from "./fixtures/english-scam.json";
 import hindiScam from "./fixtures/hindi-scam.json";
+import nextSteps from "./fixtures/next-steps.json";
 
 // Fixtures are real responses captured from the backend's POST /analyze.
 interface Fixture {
@@ -52,6 +54,7 @@ async function analyzeFixture(fixture: Fixture) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  clearNextStepsCache();
 });
 
 test("sends the message to POST /analyze and shows the results in the agreed order", async () => {
@@ -226,15 +229,15 @@ test("Clear empties the message and removes the results", async () => {
   expect(screen.queryByRole("heading", { name: /warning signs/i, level: 2 })).not.toBeInTheDocument();
 });
 
-test("screenshot upload is clearly not available and does nothing", async () => {
+test("there is no screenshot upload control and no screenshot or OCR wording", () => {
   const fetchMock = mockFetch();
-  const { user } = renderApp();
-  const upload = screen.getByRole("button", { name: /upload screenshot/i });
+  renderApp();
 
-  expect(upload).toHaveAttribute("aria-disabled", "true");
-  expect(upload).toHaveTextContent("Not supported — paste the text instead");
-  await user.click(upload);
+  expect(screen.queryByRole("button", { name: /upload|screenshot/i })).toBeNull();
   expect(document.querySelector('input[type="file"]')).toBeNull();
+  expect(document.body.textContent).not.toMatch(/screenshot|\bocr\b|coming soon|not available yet/i);
+  // Pasting or typing the text is still the way in.
+  expect(screen.getByLabelText("Message to check")).toBeEnabled();
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
@@ -247,13 +250,35 @@ test("examples fill the message box", async () => {
   expect((input as HTMLTextAreaElement).value).toMatch(/Never share your OTP/);
 });
 
-test("interface language is separate from message analysis", () => {
+test("there is no interface-language picker, and the theme control is still there", () => {
   renderApp();
-  const select = screen.getByLabelText(/interface language/i) as HTMLSelectElement;
 
-  expect(select.value).toBe("en");
-  const enabled = Array.from(select.options).filter((option) => !option.disabled);
-  expect(enabled.map((option) => option.value)).toEqual(["en"]);
+  expect(screen.queryByLabelText(/interface language/i)).toBeNull();
+  expect(screen.queryByRole("combobox")).toBeNull();
+  for (const script of ["हिन्दी", "తెలుగు", "اردو", "বাংলা"]) expect(document.body.textContent).not.toContain(script);
+  const theme = screen.getByRole("group", { name: "Theme" });
+  expect(within(theme).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
+    "System theme",
+    "Light theme",
+    "Dark theme",
+  ]);
+});
+
+test("language support is described as it is, without overclaiming", () => {
+  renderApp();
+  const about = screen.getByRole("heading", { name: /what second look does/i }).closest("section") as HTMLElement;
+  const text = about.textContent ?? "";
+
+  expect(text).toMatch(/The interface and the official guidance are in English/);
+  expect(text).toMatch(/Hindi, in Devanagari and in English letters, has partial rule-based checks/);
+  expect(text).toMatch(/Telugu, Urdu and Bengali have limited rule-based checks that have not yet been reviewed by native speakers/);
+  expect(text).toMatch(/not applied to Hindi, Hindi written in English letters, Telugu, Urdu, Bengali or mixed-language messages/);
+  expect(text).toMatch(/other wording and scam patterns may be missed/);
+  expect(text).toMatch(/Finding no warning signs does not mean a message is safe/);
+  expect(document.body.textContent).not.toMatch(/multilingual|all languages|fully supported/i);
+  expect(
+    screen.getByText(/Telugu, Urdu and Bengali have limited checks that native speakers have not yet reviewed/),
+  ).toBeInTheDocument();
 });
 
 test("responsive sanity: one main landmark, labelled navigation, and a mobile menu toggle", async () => {
@@ -266,4 +291,80 @@ test("responsive sanity: one main landmark, labelled navigation, and a mobile me
   await user.click(toggle);
   expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
   await waitFor(() => expect(document.querySelector(".site-header__menu")).toHaveClass("is-open"));
+});
+
+// --- "What happened next?" ------------------------------------------------------------------
+// The fixture is a real response captured from the backend's GET /next-steps.
+
+async function openNextSteps(...responses: (Response | Error)[]) {
+  const fetchMock = mockFetch(jsonResponse((englishScam as Fixture).response), ...responses);
+  const view = renderApp();
+  await view.user.click(view.input);
+  await view.user.paste(englishScam.message);
+  await view.user.click(view.analyze);
+  await screen.findByRole("heading", { level: 2, name: /warning sign/i });
+  await view.user.click(screen.getByRole("button", { name: /choose what happened/i }));
+  return { ...view, fetchMock };
+}
+
+test("next steps are loaded only when asked for, and nothing about the message is sent", async () => {
+  const { fetchMock } = await openNextSteps(jsonResponse(nextSteps));
+
+  await screen.findByRole("radio", { name: "I paid, or money has left my account" });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  const [url, init] = fetchMock.mock.calls[1];
+  expect(url).toBe("/next-steps");
+  expect(init.method).toBeUndefined();
+  expect(init.body).toBeUndefined();
+  expect(screen.getAllByRole("radio").map((radio) => (radio as HTMLInputElement).checked)).toEqual([false, false, false, false]);
+});
+
+test("losing money shows the helpline first, with its official source", async () => {
+  const { user, fetchMock } = await openNextSteps(jsonResponse(nextSteps));
+
+  await user.click(await screen.findByRole("radio", { name: "I paid, or money has left my account" }));
+
+  const section = screen.getByRole("heading", { name: "What happened next?" }).closest("section") as HTMLElement;
+  const cards = within(section).getAllByRole("listitem");
+  expect(cards.map((card) => within(card).getByRole("heading", { level: 4 }).textContent)).toEqual([
+    "Reporting cybercrime",
+    "Phishing: if you have already responded",
+  ]);
+  expect(within(cards[0]).getByRole("link", { name: "Call 1930" })).toHaveAttribute("href", "tel:1930");
+  expect(within(cards[0]).getByRole("link", { name: /view official source/i })).toHaveAttribute("href", "https://i4c.mha.gov.in/");
+  expect(within(cards[1]).queryByRole("link", { name: /call/i })).toBeNull();
+  expect(within(section).getByText(nextSteps.notice)).toBeInTheDocument();
+  // Choosing an answer sends nothing.
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+test("not having responded shows what not to do, without a helpline button", async () => {
+  const { user } = await openNextSteps(jsonResponse(nextSteps));
+
+  await user.click(await screen.findByRole("radio", { name: "I haven't replied, clicked or paid" }));
+
+  const section = screen.getByRole("heading", { name: "What happened next?" }).closest("section") as HTMLElement;
+  expect(within(section).getByRole("heading", { level: 4, name: "Phishing: what not to do" })).toBeInTheDocument();
+  expect(within(section).queryByRole("link", { name: /call/i })).toBeNull();
+});
+
+test("a failed load is explained calmly and can be retried", async () => {
+  const { user } = await openNextSteps(new TypeError("Failed to fetch"), jsonResponse(nextSteps));
+
+  expect(await screen.findByText(/couldn't load these steps right now/i)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Safer next steps" })).toBeInTheDocument();
+  const section = screen.getByRole("heading", { name: "What happened next?" }).closest("section") as HTMLElement;
+  await user.click(within(section).getByRole("button", { name: /try again/i }));
+
+  expect(await screen.findAllByRole("radio")).toHaveLength(4);
+});
+
+test("an action that is not a plain phone link is never turned into a button", async () => {
+  const tampered = structuredClone(nextSteps);
+  tampered.situations[3].steps[0].action = { label: "Call 1930", href: "https://example.org/fake" };
+  const { user } = await openNextSteps(jsonResponse(tampered));
+
+  await user.click(await screen.findByRole("radio", { name: "I paid, or money has left my account" }));
+
+  expect(screen.queryByRole("link", { name: "Call 1930" })).toBeNull();
 });

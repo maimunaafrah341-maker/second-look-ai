@@ -392,30 +392,6 @@ textarea {
   cursor: pointer;
 }
 
-.ui-language {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.ui-language__icon {
-  position: absolute;
-  left: 12px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-.ui-language__select {
-  width: 138px;
-  min-height: 42px;
-  padding: 0 14px 0 36px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  font-size: 0.93rem;
-  cursor: pointer;
-}
-
 .theme-switch {
   display: inline-flex;
   padding: 3px;
@@ -1125,6 +1101,50 @@ textarea {
   text-decoration: underline;
 }
 
+.guidance__action {
+  align-self: flex-start;
+  margin-top: 16px;
+}
+
+.guidance__action + .guidance__link {
+  margin-top: 0;
+}
+
+.next-steps__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.next-steps__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.next-steps__option input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+
+.next-steps__option.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.next-steps__error {
+  flex-direction: column;
+}
+
 .empty-note {
   display: flex;
   align-items: flex-start;
@@ -1467,13 +1487,6 @@ textarea {
   .analyzer__primary-actions,
   .analyzer__primary-actions .button {
     width: 100%;
-  }
-
-  /* Lets the screenshot note move to its own line on narrow screens. */
-  .analyzer__primary-actions .button {
-    flex-wrap: wrap;
-    row-gap: 4px;
-    padding-block: 8px;
   }
 
   .analyzer__actions {

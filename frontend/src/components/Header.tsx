@@ -14,15 +14,6 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: IconName }[]
   { value: "dark", label: "Dark theme", icon: "moon" },
 ];
 
-/** Interface languages. Only English is available; the others are listed as planned. */
-const INTERFACE_LANGUAGES = [
-  { value: "en", label: "English", available: true },
-  { value: "hi", label: "हिन्दी", available: false },
-  { value: "te", label: "తెలుగు", available: false },
-  { value: "ur", label: "اردو", available: false },
-  { value: "bn", label: "বাংলা", available: false },
-];
-
 export function ThemeSwitch() {
   const { preference, setPreference } = useTheme();
   return (
@@ -40,30 +31,6 @@ export function ThemeSwitch() {
           <Icon name={option.icon} size={17} />
         </button>
       ))}
-    </div>
-  );
-}
-
-function InterfaceLanguage() {
-  const id = useId();
-  return (
-    <div className="ui-language">
-      <label htmlFor={id} className="visually-hidden">
-        Interface language (this does not change which message languages can be checked)
-      </label>
-      <Icon name="globe" size={16} className="ui-language__icon" />
-      <select
-        id={id}
-        className="ui-language__select"
-        defaultValue="en"
-        title="Interface language. The language of your message is estimated separately when you analyze it."
-      >
-        {INTERFACE_LANGUAGES.map((language) => (
-          <option key={language.value} value={language.value} disabled={!language.available}>
-            {language.available ? language.label : `${language.label} (coming soon)`}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }
@@ -114,7 +81,6 @@ export function Header({ onStart }: HeaderProps) {
             </ul>
           </nav>
           <div className="site-header__controls">
-            <InterfaceLanguage />
             <ThemeSwitch />
             <button
               type="button"

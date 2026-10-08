@@ -11,12 +11,14 @@ export default defineConfig({
     proxy: {
       "/analyze": LOCAL_API,
       "/health": LOCAL_API,
+      "/next-steps": LOCAL_API,
     },
   },
   preview: {
     proxy: {
       "/analyze": LOCAL_API,
       "/health": LOCAL_API,
+      "/next-steps": LOCAL_API,
     },
   },
 });

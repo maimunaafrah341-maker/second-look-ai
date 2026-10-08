@@ -6,7 +6,7 @@ const HOW_IT_WORKS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: "message",
     title: "Submit",
-    text: "Paste the message you received. You stay in control of what you share. Screenshot upload is coming soon.",
+    text: "Paste or type the message you received. You stay in control of what you share.",
   },
   {
     icon: "search",
@@ -91,13 +91,19 @@ export function About() {
           </p>
           <p>
             An experimental machine-learning signal is shown last. It was trained on older English SMS spam, so it
-            is only applied to messages that appear to be in English, and it never decides whether a message is a
-            scam.
+            is only applied to messages that appear to be in English. It is not applied to Hindi, Hindi written in
+            English letters, Telugu, Urdu, Bengali or mixed-language messages, and it never decides whether a message
+            is a scam.
           </p>
           <p>
-            Checks are designed for English, with partial support for Hindi in Devanagari and in English letters.
-            Second Look cannot tell you that a message is safe. When in doubt, contact the organisation through an
-            official channel.
+            The interface and the official guidance are in English. The checks are designed for English. Hindi, in
+            Devanagari and in English letters, has partial rule-based checks. Telugu, Urdu and Bengali have limited
+            rule-based checks that have not yet been reviewed by native speakers. In every language, other wording
+            and scam patterns may be missed.
+          </p>
+          <p>
+            Finding no warning signs does not mean a message is safe. When in doubt, contact the organisation
+            through an official channel.
           </p>
         </div>
       </div>
