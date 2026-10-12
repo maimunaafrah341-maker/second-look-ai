@@ -8,6 +8,8 @@ import { ThemeProvider } from "../lib/theme";
 import benign from "./fixtures/benign.json";
 import englishScam from "./fixtures/english-scam.json";
 import hindiScam from "./fixtures/hindi-scam.json";
+import agentFinished from "./fixtures/agent-finished.json";
+import agentQuestion from "./fixtures/agent-question.json";
 import nextSteps from "./fixtures/next-steps.json";
 
 // Fixtures are real responses captured from the backend's POST /analyze.
@@ -373,4 +375,95 @@ test("an action that is not a plain phone link is never turned into a button", a
   await user.click(await screen.findByRole("radio", { name: "I paid, or money has left my account" }));
 
   expect(screen.queryByRole("link", { name: "Call 1930" })).toBeNull();
+});
+
+// --- "Investigate with agent" ---------------------------------------------------------------
+// The fixtures are real responses captured from the backend's POST /agent, with the language
+// model replaced by a fixed script.
+
+const DISCLOSURE = "This sends your message to Google or Groq.";
+
+function agentSection(): HTMLElement {
+  return screen.getByRole("heading", { level: 3, name: "Investigate with agent" }).closest("section") as HTMLElement;
+}
+
+async function openAgent(...responses: (Response | Error)[]) {
+  const fetchMock = mockFetch(jsonResponse((englishScam as Fixture).response), ...responses);
+  const view = renderApp();
+  await view.user.click(view.input);
+  await view.user.paste(englishScam.message);
+  await view.user.click(view.analyze);
+  await screen.findByRole("heading", { level: 2, name: /warning sign/i });
+  return { ...view, fetchMock };
+}
+
+test("the agent is not run, and nothing is sent to it, until the person asks", async () => {
+  const { user, fetchMock } = await openAgent(jsonResponse(agentQuestion));
+
+  // The notice is on screen before the button is pressed.
+  expect(within(agentSection()).getByText(DISCLOSURE)).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+
+  await user.click(within(agentSection()).getByRole("button", { name: "Investigate with agent" }));
+
+  await within(agentSection()).findByRole("group", { name: "What have you done so far?" });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  const [url, init] = fetchMock.mock.calls[1];
+  expect(url).toBe("/agent");
+  expect(JSON.parse(init.body)).toEqual({ message: englishScam.message });
+});
+
+test("the agent shows each step it took and asks its question with fixed answers only", async () => {
+  const { user } = await openAgent(jsonResponse(agentQuestion));
+  await user.click(within(agentSection()).getByRole("button", { name: "Investigate with agent" }));
+
+  const question = await within(agentSection()).findByRole("group", { name: "What have you done so far?" });
+  expect(within(question).getAllByRole("button").map((button) => button.textContent)).toEqual(
+    agentQuestion.options.map((option) => option.label),
+  );
+  expect(within(agentSection()).queryByRole("textbox")).toBeNull();
+  const steps = within(within(agentSection()).getByRole("list")).getAllByRole("listitem");
+  expect(steps.map((step) => step.querySelector(".agent__action")?.textContent)).toEqual([
+    "Ran the checks on your message",
+    "Asked you a question",
+  ]);
+  expect(steps[0]).toHaveTextContent("via Google Gemini");
+});
+
+test("answering sends only the choice's id, then shows the summary, the trace and the official steps", async () => {
+  const { user, fetchMock } = await openAgent(jsonResponse(agentQuestion), jsonResponse(agentFinished));
+  await user.click(within(agentSection()).getByRole("button", { name: "Investigate with agent" }));
+  await user.click(await within(agentSection()).findByRole("button", { name: "I paid, or money has left my account" }));
+
+  expect(await within(agentSection()).findByText(agentFinished.text)).toBeInTheDocument();
+  expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ message: englishScam.message, situation: "lost_money" });
+
+  const section = agentSection();
+  const steps = Array.from(section.querySelectorAll(".agent__step"));
+  expect(steps.map((step) => step.querySelector(".agent__action")?.textContent)).toEqual([
+    "Ran the checks on your message",
+    "Asked for something it is not allowed to do",
+    "Looked up the official steps",
+    "Wrote a summary",
+    "Wrote a summary",
+  ]);
+  expect(steps[1]).toHaveTextContent("Refused");
+  expect(steps[3]).toHaveTextContent("Rejected");
+  // A summary the server rejected is never on the page.
+  expect(section).not.toHaveTextContent("This message is safe");
+  expect(within(section).getByRole("link", { name: "Call 1930" })).toHaveAttribute("href", "tel:1930");
+  expect(within(section).getByText(agentFinished.notice)).toBeInTheDocument();
+  expect(within(section).queryByRole("group", { name: "What have you done so far?" })).toBeNull();
+});
+
+test("a failed agent run is explained and leaves the results in place", async () => {
+  const { user } = await openAgent(new TypeError("Failed to fetch"), jsonResponse(agentQuestion));
+  await user.click(within(agentSection()).getByRole("button", { name: "Investigate with agent" }));
+
+  expect(await within(agentSection()).findByText(/agent couldn't run right now/i)).toBeInTheDocument();
+  expect(within(agentSection()).getByText(DISCLOSURE)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Warning signs" })).toBeInTheDocument();
+  await user.click(within(agentSection()).getByRole("button", { name: /try again/i }));
+
+  expect(await within(agentSection()).findByRole("group", { name: "What have you done so far?" })).toBeInTheDocument();
 });

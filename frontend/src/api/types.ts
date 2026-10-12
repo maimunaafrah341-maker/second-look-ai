@@ -96,3 +96,32 @@ export interface NextStepsResponse {
   situations: NextStepSituation[];
   notice: string;
 }
+
+// Types for POST /agent: the optional agent, which sends the message to a language model.
+
+export type AgentStatus = "finished" | "needs_input" | "step_limit" | "rejected" | "unavailable";
+
+export interface AgentOption {
+  id: string;
+  label: string;
+}
+
+export interface AgentStep {
+  step: number;
+  provider: string | null;
+  action: string;
+  args: Record<string, unknown>;
+  outcome: "ok" | "refused" | "rejected";
+  detail: string;
+  /** What the action returned: an /analyze response, one next-steps situation, or nothing. */
+  result: unknown;
+}
+
+export interface AgentResponse {
+  status: AgentStatus;
+  text: string | null;
+  question: string | null;
+  options: AgentOption[];
+  trace: AgentStep[];
+  notice: string;
+}

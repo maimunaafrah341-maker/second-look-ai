@@ -1206,6 +1206,89 @@ textarea {
   flex-direction: column;
 }
 
+.agent,
+.agent__start {
+  display: grid;
+  gap: 16px;
+}
+
+.agent__disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--attention-border);
+  border-radius: 10px;
+  background: var(--attention-soft);
+  color: var(--attention);
+  font-weight: 600;
+}
+
+.agent__disclosure svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.agent__trace,
+.agent__summary {
+  padding: 16px 18px;
+}
+
+.agent__heading {
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.agent__steps {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 1.4em;
+}
+
+.agent__step > * {
+  margin-right: 8px;
+}
+
+.agent__action {
+  font-weight: 600;
+}
+
+.agent__detail,
+.agent__provider {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.agent__detail {
+  display: block;
+}
+
+.agent__question {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.agent__answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+
+.agent__answers .button {
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+
+.agent__summary p {
+  margin-top: 8px;
+}
+
 .empty-note {
   display: flex;
   align-items: flex-start;

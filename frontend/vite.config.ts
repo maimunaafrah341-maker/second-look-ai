@@ -12,6 +12,7 @@ export default defineConfig({
       "/analyze": LOCAL_API,
       "/health": LOCAL_API,
       "/next-steps": LOCAL_API,
+      "/agent": LOCAL_API,
     },
   },
   preview: {
@@ -19,6 +20,7 @@ export default defineConfig({
       "/analyze": LOCAL_API,
       "/health": LOCAL_API,
       "/next-steps": LOCAL_API,
+      "/agent": LOCAL_API,
     },
   },
 });

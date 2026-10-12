@@ -54,6 +54,22 @@ export interface ResultsText {
   nextError: string;
   tryAgain: string;
   situationLabels: Record<string, string>;
+  agentStep: string;
+  agentTitle: string;
+  agentLead: string;
+  agentDisclosure: string;
+  agentStart: string;
+  agentLoading: string;
+  agentError: string;
+  agentTraceTitle: string;
+  agentActions: Record<string, string>;
+  agentActionFallback: string;
+  agentOutcomes: Record<string, string>;
+  agentProviders: Record<string, string>;
+  agentQuestion: string;
+  agentSummaryTitle: string;
+  agentEnglishOnly: string;
+  agentAgain: string;
   classifierTitle: string;
   experimental: string;
   classifierHeadlines: Record<string, string>;
@@ -134,6 +150,29 @@ const ENGLISH: ResultsText = {
   tryAgain: "Try again",
   // In English the labels come from the API; these are not used.
   situationLabels: {},
+  agentStep: "Optional · Uses a language model",
+  agentTitle: "Investigate with agent",
+  agentLead:
+    "A language model chooses which of the checks above to run, asks you one question, and writes a short summary. It cannot decide whether a message is a scam.",
+  agentDisclosure: "This sends your message to Google or Groq.",
+  agentStart: "Investigate with agent",
+  agentLoading: "The agent is working…",
+  agentError: "The agent couldn't run right now. The results above are not affected.",
+  agentTraceTitle: "What the agent did",
+  agentActions: {
+    analyze: "Ran the checks on your message",
+    ask_user: "Asked you a question",
+    next_steps: "Looked up the official steps",
+    finish: "Wrote a summary",
+  },
+  agentActionFallback: "Asked for something it is not allowed to do",
+  agentOutcomes: { refused: "Refused", rejected: "Rejected" },
+  agentProviders: { gemini: "via Google Gemini", groq: "via Groq" },
+  // In English the question comes from the API; this is not used.
+  agentQuestion: "",
+  agentSummaryTitle: "The agent's summary",
+  agentEnglishOnly: "",
+  agentAgain: "Run again",
   classifierTitle: "Auxiliary signal",
   experimental: "Experimental",
   classifierHeadlines: {
@@ -243,6 +282,28 @@ const HINDI: ResultsText = {
     shared_details: "मैंने OTP, PIN, पासवर्ड, या कार्ड या बैंक की जानकारी बता दी",
     lost_money: "मैंने पैसे भेज दिए, या मेरे खाते से पैसे निकल गए",
   },
+  agentStep: "वैकल्पिक · भाषा मॉडल का इस्तेमाल",
+  agentTitle: "एजेंट से जाँच कराएँ",
+  agentLead:
+    "एक भाषा मॉडल चुनता है कि ऊपर की कौन-सी जाँचें चलानी हैं, आपसे एक सवाल पूछता है और छोटा सारांश लिखता है। वह यह तय नहीं कर सकता कि संदेश ठगी है या नहीं।",
+  agentDisclosure: "इससे आपका संदेश Google या Groq को भेजा जाता है।",
+  agentStart: "एजेंट से जाँच कराएँ",
+  agentLoading: "एजेंट काम कर रहा है…",
+  agentError: "एजेंट अभी नहीं चल सका। ऊपर दिए गए नतीजों पर इसका कोई असर नहीं पड़ा है।",
+  agentTraceTitle: "एजेंट ने क्या किया",
+  agentActions: {
+    analyze: "आपके संदेश पर जाँचें चलाईं",
+    ask_user: "आपसे एक सवाल पूछा",
+    next_steps: "आधिकारिक कदम देखे",
+    finish: "सारांश लिखा",
+  },
+  agentActionFallback: "ऐसा काम माँगा जिसकी उसे अनुमति नहीं है",
+  agentOutcomes: { refused: "मना किया गया", rejected: "अस्वीकार किया गया" },
+  agentProviders: { gemini: "Google Gemini के ज़रिए", groq: "Groq के ज़रिए" },
+  agentQuestion: "अब तक आपने क्या किया है?",
+  agentSummaryTitle: "एजेंट का सारांश",
+  agentEnglishOnly: "एजेंट का सारांश और उसके कदमों का ब्योरा केवल अंग्रेज़ी में उपलब्ध है।",
+  agentAgain: "फिर से चलाएँ",
   classifierTitle: "सहायक संकेत",
   experimental: "प्रायोगिक",
   classifierHeadlines: {

@@ -1,11 +1,13 @@
 import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { fetchNextSteps } from "../api/client";
+import { fetchNextSteps, investigate } from "../api/client";
 import type {
+  AgentResponse,
   AnalyzeResponse,
   ClassifierSection,
   Finding,
   GuidanceMatch,
   LanguageSection,
+  NextStepSituation,
   NextStepsResponse,
   StepAction,
 } from "../api/types";
@@ -269,6 +271,140 @@ function NextSteps({ language, text }: Presentation) {
   );
 }
 
+type AgentState = { status: "idle" | "loading" | "error" } | { status: "ready"; data: AgentResponse };
+
+function isSituation(result: unknown): result is NextStepSituation {
+  const value = result as Partial<NextStepSituation> | null;
+  return Boolean(value && typeof value.id === "string" && Array.isArray(value.steps));
+}
+
+/**
+ * Optional: a language model picks which checks to run, asks one fixed question, and writes
+ * a summary. Pressing the button sends the message to Google or Groq, and the notice above
+ * the button says so. Nothing is sent until then.
+ */
+function AgentInvestigation({ message, language, text }: { message: string } & Presentation) {
+  const [state, setState] = useState<AgentState>({ status: "idle" });
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const run = async (situation?: string) => {
+    setState({ status: "loading" });
+    try {
+      const data = await investigate(message, situation);
+      if (mounted.current) setState({ status: "ready", data });
+    } catch {
+      if (mounted.current) setState({ status: "error" });
+    }
+  };
+
+  const data = state.status === "ready" ? state.data : null;
+  const steps = data?.trace.map((entry) => entry.result).find(isSituation);
+
+  return (
+    <section className="result-section" aria-labelledby="agent-title">
+      <SectionHeading id="agent-title" step={text.agentStep} title={text.agentTitle}>
+        {text.agentLead}
+      </SectionHeading>
+
+      {(state.status === "idle" || state.status === "error") && (
+        <div className="agent__start">
+          {state.status === "error" && (
+            <p className="empty-note card card--muted" role="alert">
+              {text.agentError}
+            </p>
+          )}
+          <p className="agent__disclosure">
+            <Icon name="alert" size={16} />
+            {text.agentDisclosure}
+          </p>
+          <div>
+            <button type="button" className="button button--secondary" onClick={() => run()}>
+              {state.status === "error" ? text.tryAgain : text.agentStart}
+            </button>
+          </div>
+        </div>
+      )}
+      {state.status === "loading" && (
+        <p className="empty-note card card--muted" role="status">
+          <span className="spinner" aria-hidden="true" />
+          {text.agentLoading}
+        </p>
+      )}
+      {data && (
+        <div className="agent" aria-live="polite">
+          {text.agentEnglishOnly && <p className="section-notice">{text.agentEnglishOnly}</p>}
+          <div className="agent__trace card card--muted">
+            <h4 className="agent__heading">{text.agentTraceTitle}</h4>
+            <ol className="agent__steps">
+              {data.trace.map((entry) => (
+                <li key={entry.step} className={`agent__step agent__step--${entry.outcome}`}>
+                  <span className="agent__action">{text.agentActions[entry.action] ?? text.agentActionFallback}</span>
+                  {entry.outcome !== "ok" && (
+                    <span className="pill pill--neutral">{text.agentOutcomes[entry.outcome] ?? entry.outcome}</span>
+                  )}
+                  {/* Written by the server's code, not by the model, and only in English. */}
+                  <span className="agent__detail" lang="en">
+                    {entry.detail}
+                  </span>
+                  {entry.provider && text.agentProviders[entry.provider] && (
+                    <span className="agent__provider">{text.agentProviders[entry.provider]}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {data.status === "needs_input" ? (
+            <fieldset className="agent__question">
+              <legend className="agent__heading">{text.agentQuestion || data.question}</legend>
+              <div className="agent__answers">
+                {/* The only answers there are: the same fixed choices as "What happened next?". */}
+                {data.options.map((option) => (
+                  <button key={option.id} type="button" className="button button--secondary" onClick={() => run(option.id)}>
+                    {text.situationLabels[option.id] ?? option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          ) : (
+            <>
+              <div className="agent__summary card">
+                <h4 className="agent__heading">{text.agentSummaryTitle}</h4>
+                {/* The model's own words, shown only after the server's check accepted them. */}
+                <p lang="en">{data.text}</p>
+              </div>
+              {steps && (
+                <ol className="guidance-list">
+                  {steps.steps.map((step) => (
+                    <GuidanceCard key={step.topic} match={step} action={step.action} language={language} text={text} />
+                  ))}
+                </ol>
+              )}
+              <div>
+                <button type="button" className="button button--secondary button--compact" onClick={() => run()}>
+                  <Icon name="refresh" size={16} />
+                  {text.agentAgain}
+                </button>
+              </div>
+            </>
+          )}
+          <p className="section-notice" lang="en">
+            <Icon name="info" size={15} />
+            {data.notice}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ClassifierSignal({ classifier, language, text }: { classifier: ClassifierSection } & Presentation) {
   const key = classifier.status === "ok" && classifier.label ? classifier.label : classifier.status;
   return (
@@ -401,6 +537,8 @@ export const Results = forwardRef<HTMLHeadingElement, ResultsProps>(function Res
           </section>
 
           <NextSteps {...presentation} />
+
+          <AgentInvestigation key={message} message={message} {...presentation} />
 
           <ClassifierSignal classifier={data.classifier} {...presentation} />
 

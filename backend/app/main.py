@@ -1,12 +1,15 @@
 import os
+import threading
+import time
 from typing import Literal
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
+from app.agent import build_tools, run_agent
 from app.classifier import NOT_APPLICABLE, UNAVAILABLE, Classifier
 from app.guidance import GuidanceIndex
 from app.language import estimate_language
@@ -52,6 +55,18 @@ NEXT_STEPS_NOTICE = (
     "picks the same answer. They are not advice about your particular case, and Second Look "
     "does not contact anyone or file a report for you."
 )
+
+AGENT_NOTICE = (
+    "This used a language model, so your message was sent to Google or Groq. The model "
+    "only chose which checks to run and wrote the summary; the warning signs, guidance and "
+    "steps come from the same code and official sources as the rest of Second Look. It "
+    "cannot determine whether a message is fraudulent. Verify through an official channel "
+    "before acting."
+)
+# The agent calls free-tier model APIs, so requests to it are limited: per caller and in
+# total, per minute. The counts are held in memory only and hold no message text.
+AGENT_REQUESTS_PER_MINUTE = int(os.environ.get("SECOND_LOOK_AGENT_REQUESTS_PER_MINUTE", "10"))
+AGENT_TOTAL_PER_MINUTE = int(os.environ.get("SECOND_LOOK_AGENT_TOTAL_PER_MINUTE", "60"))
 
 app = FastAPI(title="Second Look", version="0.1.0")
 
@@ -167,6 +182,42 @@ class AnalyzeResponse(BaseModel):
     language: LanguageSection
 
 
+class AgentRequest(AnalyzeRequest):
+    # The person's answer to the agent's one question: the id of a fixed situation.
+    situation: str | None = None
+
+    @field_validator("situation")
+    @classmethod
+    def situation_must_be_known(cls, value: str | None) -> str | None:
+        if value is not None and value not in SITUATION_LABELS:
+            raise ValueError("situation is not one of the fixed choices")
+        return value
+
+
+class AgentOption(BaseModel):
+    id: str
+    label: str
+
+
+class AgentStep(BaseModel):
+    step: int
+    provider: str | None
+    action: str
+    args: dict
+    outcome: Literal["ok", "refused", "rejected"]
+    detail: str
+    result: dict | None
+
+
+class AgentResponse(BaseModel):
+    status: Literal["finished", "needs_input", "step_limit", "rejected", "unavailable"]
+    text: str | None
+    question: str | None
+    options: list[AgentOption]
+    trace: list[AgentStep]
+    notice: str
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
     # The default response repeats the submitted value. Return the reason only.
@@ -221,9 +272,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/next-steps")
-def next_steps() -> NextStepsResponse:
-    # The same for every caller: nothing about a message is sent to or used by this route.
+def next_steps_response() -> NextStepsResponse:
     return NextStepsResponse(
         situations=[
             NextStepSituation(
@@ -253,13 +302,91 @@ def next_steps() -> NextStepsResponse:
     )
 
 
+def analyze_message(message: str) -> AnalyzeResponse:
+    language = estimate_message_language(message)
+    return AnalyzeResponse(
+        findings=detect_warning_signs(message),
+        notice=NOTICE,
+        guidance=retrieve_guidance(message),
+        classifier=run_classifier(message, language.detected),
+        language=language,
+    )
+
+
+SITUATION_LABELS = {situation.id: situation.label for situation, _ in next_step_situations}
+
+
+def situation_steps(situation_id: str) -> dict:
+    situation = next(item for item in next_steps_response().situations if item.id == situation_id)
+    return situation.model_dump()
+
+
+# The only things the agent can do: the two existing checks, one fixed question, and finishing.
+agent_tools = build_tools(
+    analyze=lambda message: analyze_message(message).model_dump(),
+    next_steps=situation_steps,
+)
+
+
+class RateLimiter:
+    """Counts requests per caller and in total within a fixed window, in memory."""
+
+    def __init__(self, per_caller: int, total: int, window_seconds: float = 60.0):
+        self.per_caller = per_caller
+        self.total = total
+        self.window_seconds = window_seconds
+        self._lock = threading.Lock()
+        self.reset()
+
+    def reset(self) -> None:
+        self._started = time.monotonic()
+        self._counts: dict[str, int] = {}
+        self._total = 0
+
+    def allow(self, caller: str) -> bool:
+        with self._lock:
+            if time.monotonic() - self._started >= self.window_seconds:
+                self.reset()
+            if self._total >= self.total or self._counts.get(caller, 0) >= self.per_caller:
+                return False
+            self._total += 1
+            self._counts[caller] = self._counts.get(caller, 0) + 1
+            return True
+
+
+agent_limiter = RateLimiter(AGENT_REQUESTS_PER_MINUTE, AGENT_TOTAL_PER_MINUTE)
+
+
+@app.get("/next-steps")
+def next_steps() -> NextStepsResponse:
+    # The same for every caller: nothing about a message is sent to or used by this route.
+    return next_steps_response()
+
+
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
-    language = estimate_message_language(request.message)
-    return AnalyzeResponse(
-        findings=detect_warning_signs(request.message),
-        notice=NOTICE,
-        guidance=retrieve_guidance(request.message),
-        classifier=run_classifier(request.message, language.detected),
-        language=language,
+    return analyze_message(request.message)
+
+
+@app.post("/agent")
+def agent(request: AgentRequest, http_request: Request) -> AgentResponse:
+    # Opt-in: unlike /analyze, this sends the message to a language model provider. Nothing
+    # is kept between requests; the answer to the agent's question arrives as `situation`.
+    caller = http_request.client.host if http_request.client else "unknown"
+    if not agent_limiter.allow(caller):
+        raise HTTPException(status_code=429, detail="Too many agent requests. Try again in a minute.")
+    result = run_agent(
+        request.message,
+        request.situation,
+        SITUATION_LABELS.get(request.situation) if request.situation else None,
+        agent_tools,
+    )
+    options = [AgentOption(id=key, label=label) for key, label in SITUATION_LABELS.items()]
+    return AgentResponse(
+        status=result.status,
+        text=result.text,
+        question=result.question,
+        options=options if result.status == "needs_input" else [],
+        trace=result.trace,
+        notice=AGENT_NOTICE,
     )

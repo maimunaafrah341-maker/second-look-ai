@@ -1,4 +1,4 @@
-import type { AnalyzeResponse, NextStepsResponse } from "./types";
+import type { AgentResponse, AnalyzeResponse, NextStepsResponse } from "./types";
 
 export type ApiErrorKind = "blank" | "too_long" | "invalid" | "network" | "timeout" | "server";
 
@@ -132,6 +132,55 @@ export async function fetchNextSteps(timeoutMs: number = DEFAULT_TIMEOUT_MS): Pr
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok || !looksLikeNextSteps(body)) throw new AnalyzeError("server", response.status);
     nextStepsCache = body;
+    return body;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function looksLikeAgentRun(body: unknown): body is AgentResponse {
+  const value = body as Partial<AgentResponse> | null;
+  return Boolean(
+    value &&
+      typeof value.status === "string" &&
+      typeof value.notice === "string" &&
+      Array.isArray(value.options) &&
+      Array.isArray(value.trace) &&
+      value.trace.every((step) => typeof step?.action === "string" && typeof step.detail === "string"),
+  );
+}
+
+/**
+ * Run the optional agent through POST /agent. Unlike analyzeMessage, this sends the message
+ * on to a language model provider, so it is called only when the person asks for it.
+ * `situation` is the person's answer to the agent's one question, once they have given it.
+ */
+export async function investigate(
+  message: string,
+  situation?: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<AgentResponse> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase()}/agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(situation ? { message, situation } : { message }),
+        signal: controller.signal,
+      });
+    } catch {
+      throw new AnalyzeError(timedOut ? "timeout" : "network");
+    }
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok || !looksLikeAgentRun(body)) throw new AnalyzeError("server", response.status);
     return body;
   } finally {
     clearTimeout(timer);
