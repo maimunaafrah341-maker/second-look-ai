@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+from datetime import date
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
@@ -14,6 +15,7 @@ from app.classifier import NOT_APPLICABLE, UNAVAILABLE, Classifier
 from app.guidance import GuidanceIndex
 from app.language import estimate_language
 from app.next_steps import resolve as resolve_next_steps
+from app.report import build_report
 from app.warning_signs import Finding, detect_warning_signs
 
 MAX_MESSAGE_LENGTH = 5000
@@ -321,10 +323,28 @@ def situation_steps(situation_id: str) -> dict:
     return situation.model_dump()
 
 
-# The only things the agent can do: the two existing checks, one fixed question, and finishing.
+# The report always points to the same verified passage that /next-steps uses for reporting.
+REPORTING_PASSAGE_ID = "report-helpline-1930"
+reporting_passage = guidance_index.verified_passage(REPORTING_PASSAGE_ID)
+
+
+def prepare_report(message: str, situation_id: str | None) -> dict:
+    answer = SITUATION_LABELS.get(situation_id) if situation_id else None
+    return build_report(message, detect_warning_signs(message), answer, reporting_passage, date.today())
+
+
+# The only things the agent can do: the parts of /analyze as separate checks, the fixed next
+# steps, a templated report, one fixed question, and finishing.
 agent_tools = build_tools(
-    analyze=lambda message: analyze_message(message).model_dump(),
+    warning_signs=lambda message: {
+        "findings": [finding.model_dump() for finding in detect_warning_signs(message)],
+        "notice": NOTICE,
+    },
+    guidance=lambda query: retrieve_guidance(query).model_dump(),
+    language=lambda message: estimate_message_language(message).model_dump(),
+    spam_signal=lambda message: run_classifier(message, estimate_message_language(message).detected).model_dump(),
     next_steps=situation_steps,
+    report=prepare_report,
 )
 
 

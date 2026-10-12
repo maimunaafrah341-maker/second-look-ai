@@ -424,7 +424,8 @@ test("the agent shows each step it took and asks its question with fixed answers
   expect(within(agentSection()).queryByRole("textbox")).toBeNull();
   const steps = within(within(agentSection()).getByRole("list")).getAllByRole("listitem");
   expect(steps.map((step) => step.querySelector(".agent__action")?.textContent)).toEqual([
-    "Ran the checks on your message",
+    "Checked for warning signs",
+    "Searched the official guidance",
     "Asked you a question",
   ]);
   expect(steps[0]).toHaveTextContent("via Google Gemini");
@@ -441,14 +442,17 @@ test("answering sends only the choice's id, then shows the summary, the trace an
   const section = agentSection();
   const steps = Array.from(section.querySelectorAll(".agent__step"));
   expect(steps.map((step) => step.querySelector(".agent__action")?.textContent)).toEqual([
-    "Ran the checks on your message",
+    "Checked for warning signs",
     "Asked for something it is not allowed to do",
+    "Searched the official guidance",
     "Looked up the official steps",
+    "Prepared a report for you",
     "Wrote a summary",
     "Wrote a summary",
   ]);
   expect(steps[1]).toHaveTextContent("Refused");
-  expect(steps[3]).toHaveTextContent("Rejected");
+  expect(steps[2]).toHaveTextContent("for the words: otp, bank, link");
+  expect(steps[5]).toHaveTextContent("Rejected");
   // A summary the server rejected is never on the page.
   expect(section).not.toHaveTextContent("This message is safe");
   expect(within(section).getByRole("link", { name: "Call 1930" })).toHaveAttribute("href", "tel:1930");
@@ -466,4 +470,41 @@ test("a failed agent run is explained and leaves the results in place", async ()
   await user.click(within(agentSection()).getByRole("button", { name: /try again/i }));
 
   expect(await within(agentSection()).findByRole("group", { name: "What have you done so far?" })).toBeInTheDocument();
+});
+
+test("the form's agent button says where the message goes, then analyzes and starts the agent", async () => {
+  const fetchMock = mockFetch(jsonResponse((englishScam as Fixture).response), jsonResponse(agentQuestion));
+  const { user, input } = renderApp();
+
+  // The notice is beside the button before anything is sent.
+  expect(screen.getByText(/sends your message to Google or Groq/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  await user.click(input);
+  await user.paste(englishScam.message);
+  await user.click(screen.getByRole("button", { name: "Investigate with agent" }));
+
+  await within(agentSection()).findByRole("group", { name: "What have you done so far?" });
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/analyze", "/agent"]);
+  // The ordinary results are all still there, below the agent.
+  expect(screen.getByRole("heading", { name: "Warning signs" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "What official sources say" })).toBeInTheDocument();
+});
+
+test("the report is shown in full and can be copied; nothing is sent when it is", async () => {
+  const { user, fetchMock } = await openAgent(jsonResponse(agentQuestion), jsonResponse(agentFinished));
+  await user.click(within(agentSection()).getByRole("button", { name: "Investigate with agent" }));
+  await user.click(await within(agentSection()).findByRole("button", { name: "I paid, or money has left my account" }));
+
+  const report = agentFinished.trace.find((step) => step.action === "prepare_report")!.result as { text: string };
+  const copy = await within(agentSection()).findByRole("button", { name: "Copy report" });
+  expect(agentSection().querySelector(".agent__report-text")?.textContent).toBe(report.text);
+  expect(report.text).toContain(englishScam.message);
+  expect(report.text).toContain("What I have done so far: I paid, or money has left my account");
+
+  await user.click(copy);
+
+  expect(await within(agentSection()).findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  expect(await navigator.clipboard.readText()).toBe(report.text);
+  expect(fetchMock).toHaveBeenCalledTimes(3);
 });

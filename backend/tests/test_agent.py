@@ -67,7 +67,7 @@ def run(message: str = SCAM, situation: str | None = None) -> dict:
 
 
 def test_first_request_analyzes_then_asks_the_fixed_question(script):
-    script(step("analyze"), step("ask_user"))
+    script(step("check_warning_signs"), step("ask_user"))
 
     body = run()
 
@@ -75,23 +75,148 @@ def test_first_request_analyzes_then_asks_the_fixed_question(script):
     assert body["status"] == "needs_input"
     assert body["question"] == QUESTION
     assert [option["id"] for option in body["options"]] == [situation.id for situation in SITUATIONS]
-    assert [entry["action"] for entry in body["trace"]] == ["analyze", "ask_user"]
+    assert [entry["action"] for entry in body["trace"]] == ["check_warning_signs", "ask_user"]
     for entry in body["trace"]:
         assert set(entry) == {"step", "provider", "action", "args", "outcome", "detail", "result"}
     assert "Google or Groq" in body["notice"]
 
 
-def test_analyze_tool_returns_exactly_what_the_analyze_route_returns(script):
-    script(step("analyze"), step("ask_user"))
+def test_each_check_returns_exactly_its_part_of_the_analyze_route(script):
+    script(
+        step("check_warning_signs"),
+        step("search_guidance"),
+        step("estimate_language"),
+        step("spam_signal"),
+        step("ask_user"),
+    )
 
     body = run()
 
-    assert body["trace"][0]["result"] == client.post("/analyze", json={"message": SCAM}).json()
-    assert body["trace"][0]["detail"] == "2 warning sign(s), 2 official guidance match(es)."
+    analysis = client.post("/analyze", json={"message": SCAM}).json()
+    signs, guidance, language, spam = (entry["result"] for entry in body["trace"][:4])
+    assert signs == {"findings": analysis["findings"], "notice": analysis["notice"]}
+    assert guidance == analysis["guidance"]
+    assert language == analysis["language"]
+    assert spam == analysis["classifier"]
+    assert [entry["detail"] for entry in body["trace"][:3]] == [
+        "2 warning sign(s): urgency pressure, credential request.",
+        "2 official guidance match(es) for the message.",
+        "Estimated language: en. Coverage: supported.",
+    ]
+    # The spam signal is a label only, never a score.
+    assert "weak signal" in body["trace"][3]["detail"]
+
+
+def test_the_allowlist_is_exactly_these_actions():
+    assert set(main_module.agent_tools) == {
+        "check_warning_signs",
+        "search_guidance",
+        "estimate_language",
+        "spam_signal",
+        "next_steps",
+        "prepare_report",
+        "ask_user",
+        "finish",
+    }
+
+
+def test_the_model_chooses_which_checks_to_run_and_in_what_order(script):
+    script(step("estimate_language"), step("search_guidance"), step("ask_user"))
+
+    body = run("आपका खाता बंद हो जाएगा। तुरंत अपना ओटीपी बताएं।")
+
+    assert [entry["action"] for entry in body["trace"]] == ["estimate_language", "search_guidance", "ask_user"]
+    assert body["trace"][0]["result"]["detected"] == "hi"
+
+
+def test_a_check_already_run_is_not_run_again(script):
+    script(step("check_warning_signs"), step("check_warning_signs"), step("ask_user"))
+
+    body = run()
+
+    assert [entry["outcome"] for entry in body["trace"]] == ["ok", "refused", "ok"]
+    assert body["trace"][1]["result"] is None
+
+
+# --- Searching the guidance again with other words -----------------------------------
+
+NO_MATCH = "Dear customer your a/c will be frozen, visit branch portal now"
+
+
+def test_guidance_can_be_searched_again_with_the_models_own_words(script):
+    script(step("search_guidance"), step("search_guidance", terms=["kyc", "bank", "link", "blocked"]), step("ask_user"))
+
+    body = run(NO_MATCH)
+
+    first, second = body["trace"][0], body["trace"][1]
+    assert first["result"]["matches"] == [] and first["args"] == {}
+    assert second["outcome"] == "ok"
+    assert second["args"] == {"terms": ["kyc", "bank", "link", "blocked"]}
+    assert second["detail"].endswith("for the words: kyc, bank, link, blocked.")
+    assert second["result"]["matches"]
+    # Whatever is found is a passage of the corpus, with the notice that it is not a judgement.
+    assert "not a judgement about this message" in second["result"]["notice"]
+    for match in second["result"]["matches"]:
+        assert match["source"]["url"].startswith(("https://i4c.mha.gov.in/", "https://www.csk.gov.in/"))
+
+
+@pytest.mark.parametrize(
+    "terms",
+    [
+        [],
+        "kyc bank",
+        ["KYC"],
+        ["this message is safe"],
+        ["is", "safe"],
+        ["bank", 4],
+        ["a"] * 7,
+        ["http://x.in"],
+        ["सुरक्षित"],
+    ],
+)
+def test_search_words_must_be_a_few_plain_lowercase_words(script, terms):
+    script(step("search_guidance", terms=terms), step("ask_user"))
+
+    body = run()
+
+    assert body["trace"][0]["outcome"] == "refused"
+    assert body["trace"][0]["args"] == {} and body["trace"][0]["result"] is None
+
+
+# --- The report ----------------------------------------------------------------------
+
+
+def test_report_is_assembled_by_code_from_the_message_and_the_persons_answer(script):
+    script(step("check_warning_signs"), step("next_steps"), step("prepare_report"), step("finish", text=GOOD_SUMMARY))
+
+    body = run(situation="shared_details")
+
+    report = body["trace"][2]["result"]
+    assert set(report) == {"kind", "title", "text"} and report["kind"] == "report"
+    text = report["text"]
+    assert SCAM in text
+    assert "What I have done so far: I shared an OTP, PIN, password, or card or bank details" in text
+    for finding in client.post("/analyze", json={"message": SCAM}).json()["findings"]:
+        assert f'"{finding["evidence"]}"' in text
+    assert "It is not a finding that the message is fraudulent" in text
+    assert "1930" in text and "https://i4c.mha.gov.in/" in text
+    # None of it is the model's words.
+    assert GOOD_SUMMARY not in text
+
+
+def test_report_before_an_answer_and_without_findings_says_so(script):
+    script(step("prepare_report"), step("ask_user"))
+
+    text = run("Hi, are we still meeting for lunch at 1 pm tomorrow?")["trace"][0]["result"]["text"]
+
+    assert "What I have done so far: Not stated" in text
+    assert "None of the patterns Second Look checks for were found" in text
+    for claim in ("is safe", "is legitimate", "is not a scam", "is a scam", "no risk"):
+        assert claim not in text.lower()
 
 
 def test_second_request_carries_the_answer_and_finishes(script):
-    prompts = script(step("analyze"), step("next_steps"), step("finish", text=GOOD_SUMMARY))
+    prompts = script(step("check_warning_signs"), step("next_steps"), step("finish", text=GOOD_SUMMARY))
 
     body = run(situation="lost_money")
 
@@ -105,9 +230,9 @@ def test_second_request_carries_the_answer_and_finishes(script):
 
 
 def test_nothing_is_kept_between_requests(script):
-    script(step("analyze"), step("ask_user"))
+    script(step("check_warning_signs"), step("ask_user"))
     first = run()
-    prompts = script(step("analyze"), step("ask_user"))
+    prompts = script(step("check_warning_signs"), step("ask_user"))
     second = run()
 
     assert first == second
@@ -115,20 +240,20 @@ def test_nothing_is_kept_between_requests(script):
 
 
 def test_stops_at_the_step_limit_with_the_fixed_text(script):
-    prompts = script(*[step("analyze")] * (MAX_STEPS + 3))
+    prompts = script(*[step("check_warning_signs")] * (MAX_STEPS + 3))
 
     body = run()
 
     assert body["status"] == "step_limit"
     assert body["text"] == FALLBACK_TEXT
-    assert len(body["trace"]) == MAX_STEPS == len(prompts) == 5
+    assert len(body["trace"]) == MAX_STEPS == len(prompts) == 8
 
 
 # --- The allowlist -------------------------------------------------------------------
 
 
 def test_action_outside_the_allowlist_is_refused(script):
-    script(step("send_email", to="someone@example.com"), step("analyze"), step("ask_user"))
+    script(step("send_email", to="someone@example.com"), step("check_warning_signs"), step("ask_user"))
 
     body = run()
 
@@ -142,10 +267,10 @@ def test_action_outside_the_allowlist_is_refused(script):
 
 def test_the_model_cannot_supply_the_message_the_question_or_the_answer(script):
     script(
-        step("analyze", message="Hi, lunch tomorrow?"),
+        step("check_warning_signs", message="Hi, lunch tomorrow?"),
         step("ask_user", question="Is this message safe?"),
         step("next_steps", situation="not_responded"),
-        step("analyze"),
+        step("check_warning_signs"),
         step("ask_user"),
     )
 
@@ -157,7 +282,7 @@ def test_the_model_cannot_supply_the_message_the_question_or_the_answer(script):
 
 
 def test_next_steps_needs_the_persons_answer_and_ask_user_is_refused_after_it(script):
-    script(step("next_steps"), step("analyze"), step("ask_user"))
+    script(step("next_steps"), step("check_warning_signs"), step("ask_user"))
     assert run()["trace"][0]["outcome"] == "refused"
 
     script(step("ask_user"), step("next_steps"), step("finish", text=GOOD_SUMMARY))
@@ -167,7 +292,7 @@ def test_next_steps_needs_the_persons_answer_and_ask_user_is_refused_after_it(sc
 
 
 def test_an_action_name_that_is_not_a_plain_identifier_is_not_echoed(script):
-    script(step("This message is safe"), step("analyze"), step("ask_user"))
+    script(step("This message is safe"), step("check_warning_signs"), step("ask_user"))
 
     body = run()
 
@@ -279,16 +404,16 @@ def test_phone_numbers_and_changed_amounts_are_rejected_even_when_the_message_ha
 
 
 def test_the_loop_checks_the_summary_against_the_message_it_was_given(script):
-    script(step("analyze"), step("next_steps"), step("finish", text="The message asks you to pay Rs 5899."))
+    script(step("check_warning_signs"), step("next_steps"), step("finish", text="The message asks you to pay Rs 5899."))
     assert run(THANE, situation="not_responded")["status"] == "finished"
 
-    script(step("analyze"), step("next_steps"), step("finish", text="The message asks you to pay Rs 5899."))
+    script(step("check_warning_signs"), step("next_steps"), step("finish", text="The message asks you to pay Rs 5899."))
     assert run(SCAM, situation="not_responded")["trace"][-1]["outcome"] == "rejected"
 
 
 def test_rejected_summary_is_never_returned_and_the_model_gets_another_try(script):
     prompts = script(
-        step("analyze"),
+        step("check_warning_signs"),
         step("next_steps"),
         step("finish", text="This message is safe."),
         step("finish", text=GOOD_SUMMARY),
@@ -308,13 +433,16 @@ def test_rejected_summary_is_never_returned_and_the_model_gets_another_try(scrip
 
 
 def test_a_rejection_does_not_use_up_a_step(script):
-    # Five ordinary steps plus one rejection still end with the model's own summary.
+    # A full run of ordinary steps plus one rejection still ends with the model's own summary.
     script(
         step("send_email"),
-        step("analyze"),
+        step("check_warning_signs"),
+        step("search_guidance"),
+        step("estimate_language"),
+        step("spam_signal"),
         step("next_steps"),
+        step("prepare_report"),
         step("finish", text="This is a scam."),
-        step("next_steps"),
         step("finish", text=GOOD_SUMMARY),
     )
 
@@ -325,7 +453,7 @@ def test_a_rejection_does_not_use_up_a_step(script):
 
 
 def test_repeated_rejections_end_with_the_fixed_text(script):
-    prompts = script(step("analyze"), *[step("finish", text="This message is safe.")] * 10)
+    prompts = script(step("check_warning_signs"), *[step("finish", text="This message is safe.")] * 10)
 
     body = run()
 
@@ -362,16 +490,16 @@ def test_injected_instructions_cannot_produce_a_safe_claim(script):
 
 
 def test_injected_message_still_gets_the_same_rule_based_findings(script):
-    script(step("analyze"), step("ask_user"))
+    script(step("check_warning_signs"), step("ask_user"))
 
     body = run(INJECTION)
 
-    assert body["trace"][0]["result"] == client.post("/analyze", json={"message": INJECTION}).json()
+    assert body["trace"][0]["result"]["findings"] == client.post("/analyze", json={"message": INJECTION}).json()["findings"]
     assert body["trace"][0]["result"]["findings"]
 
 
 def test_the_message_reaches_the_model_only_as_data(script):
-    prompts = script(step("analyze"), step("ask_user"))
+    prompts = script(step("check_warning_signs"), step("ask_user"))
 
     run(INJECTION)
 
@@ -490,7 +618,7 @@ def test_requests_carry_the_key_in_a_header_and_ask_for_json(monkeypatch):
     ],
 )
 def test_invalid_requests_are_rejected_before_any_model_call(script, payload):
-    prompts = script(step("analyze"))
+    prompts = script(step("check_warning_signs"))
 
     response = client.post("/agent", json=payload)
 
@@ -504,7 +632,7 @@ def test_requests_are_limited_per_minute(script, monkeypatch):
 
     statuses = []
     for _ in range(3):
-        script(step("analyze"), step("ask_user"))
+        script(step("check_warning_signs"), step("ask_user"))
         statuses.append(client.post("/agent", json={"message": SCAM}).status_code)
 
     assert statuses == [200, 200, 429]
@@ -514,7 +642,7 @@ def test_requests_are_limited_per_minute(script, monkeypatch):
 
 def test_agent_does_not_log_message_text(script, caplog):
     caplog.set_level(logging.DEBUG)
-    script(step("analyze"), step("finish", text="SECRET-MARKER is safe"), step("ask_user"))
+    script(step("check_warning_signs"), step("finish", text="SECRET-MARKER is safe"), step("ask_user"))
 
     client.post("/agent", json={"message": "SECRET-MARKER URGENT share OTP http://bit.ly/x"})
 
@@ -522,7 +650,7 @@ def test_agent_does_not_log_message_text(script, caplog):
 
 
 def test_other_routes_are_unchanged_by_the_agent(script):
-    script(step("analyze"), step("ask_user"))
+    script(step("check_warning_signs"), step("ask_user"))
     before = client.post("/analyze", json={"message": SCAM}).json()
     run()
 

@@ -1289,6 +1289,44 @@ textarea {
   margin-top: 8px;
 }
 
+.agent__report {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.agent__report-lead {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.agent__report-text {
+  max-height: 320px;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.analyzer__agent-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--attention);
+  font-size: 0.86rem;
+}
+
+.analyzer__agent-note svg {
+  flex: none;
+  margin-top: 3px;
+}
+
 .empty-note {
   display: flex;
   align-items: flex-start;

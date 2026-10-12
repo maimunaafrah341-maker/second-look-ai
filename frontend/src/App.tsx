@@ -14,13 +14,13 @@ export const SLOW_AFTER_MS = 8000;
 type Phase =
   | { kind: "idle" }
   | { kind: "analyzing"; slow: boolean }
-  | { kind: "result"; message: string; data: AnalyzeResponse }
+  | { kind: "result"; message: string; data: AnalyzeResponse; withAgent: boolean }
   | { kind: "error"; error: ApiErrorKind };
 
 type Action =
   | { type: "start" }
   | { type: "slow" }
-  | { type: "success"; message: string; data: AnalyzeResponse }
+  | { type: "success"; message: string; data: AnalyzeResponse; withAgent: boolean }
   | { type: "failure"; error: ApiErrorKind }
   | { type: "reset" };
 
@@ -31,7 +31,7 @@ function reducer(phase: Phase, action: Action): Phase {
     case "slow":
       return phase.kind === "analyzing" ? { ...phase, slow: true } : phase;
     case "success":
-      return { kind: "result", message: action.message, data: action.data };
+      return { kind: "result", message: action.message, data: action.data, withAgent: action.withAgent };
     case "failure":
       return { kind: "error", error: action.error };
     case "reset":
@@ -73,28 +73,33 @@ export default function App() {
     textareaRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const analyze = useCallback(async () => {
-    const found = inputProblem(text);
-    setProblem(found);
-    if (found) {
-      textareaRef.current?.focus();
-      return;
-    }
-    requestRef.current?.abort();
-    const controller = new AbortController();
-    requestRef.current = controller;
-    dispatch({ type: "start" });
-    const slowTimer = window.setTimeout(() => dispatch({ type: "slow" }), SLOW_AFTER_MS);
-    try {
-      const data = await analyzeMessage(text, { signal: controller.signal });
-      dispatch({ type: "success", message: text, data });
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      dispatch({ type: "failure", error: error instanceof AnalyzeError ? error.kind : "network" });
-    } finally {
-      window.clearTimeout(slowTimer);
-    }
-  }, [text]);
+  // withAgent also starts the optional agent once the analysis is shown. That sends the
+  // message to a language model provider, so it happens only from the button that says so.
+  const analyze = useCallback(
+    async (withAgent: boolean) => {
+      const found = inputProblem(text);
+      setProblem(found);
+      if (found) {
+        textareaRef.current?.focus();
+        return;
+      }
+      requestRef.current?.abort();
+      const controller = new AbortController();
+      requestRef.current = controller;
+      dispatch({ type: "start" });
+      const slowTimer = window.setTimeout(() => dispatch({ type: "slow" }), SLOW_AFTER_MS);
+      try {
+        const data = await analyzeMessage(text, { signal: controller.signal });
+        dispatch({ type: "success", message: text, data, withAgent });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        dispatch({ type: "failure", error: error instanceof AnalyzeError ? error.kind : "network" });
+      } finally {
+        window.clearTimeout(slowTimer);
+      }
+    },
+    [text],
+  );
 
   const clear = useCallback(() => {
     requestRef.current?.abort();
@@ -123,7 +128,8 @@ export default function App() {
         <Analyzer
           value={text}
           onChange={changeText}
-          onSubmit={analyze}
+          onSubmit={() => analyze(false)}
+          onInvestigate={() => analyze(true)}
           onClear={clear}
           busy={phase.kind === "analyzing"}
           problem={problem}
@@ -132,12 +138,13 @@ export default function App() {
           onResultsLanguageChange={setResultsLanguage}
         />
         {phase.kind === "analyzing" && <AnalyzingState slow={phase.slow} />}
-        {phase.kind === "error" && <ErrorState kind={phase.error} onRetry={analyze} />}
+        {phase.kind === "error" && <ErrorState kind={phase.error} onRetry={() => analyze(false)} />}
         {phase.kind === "result" && (
           <Results
             ref={resultsHeadingRef}
             message={phase.message}
             data={phase.data}
+            startAgent={phase.withAgent}
             language={resultsLanguage}
             onLanguageChange={setResultsLanguage}
             onCheckAnother={clear}

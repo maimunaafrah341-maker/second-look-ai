@@ -70,6 +70,10 @@ export interface ResultsText {
   agentSummaryTitle: string;
   agentEnglishOnly: string;
   agentAgain: string;
+  agentReportTitle: string;
+  agentReportLead: string;
+  agentCopy: string;
+  agentCopied: string;
   classifierTitle: string;
   experimental: string;
   classifierHeadlines: Record<string, string>;
@@ -160,9 +164,13 @@ const ENGLISH: ResultsText = {
   agentError: "The agent couldn't run right now. The results above are not affected.",
   agentTraceTitle: "What the agent did",
   agentActions: {
-    analyze: "Ran the checks on your message",
+    check_warning_signs: "Checked for warning signs",
+    search_guidance: "Searched the official guidance",
+    estimate_language: "Estimated the language",
+    spam_signal: "Compared it with older SMS spam",
     ask_user: "Asked you a question",
     next_steps: "Looked up the official steps",
+    prepare_report: "Prepared a report for you",
     finish: "Wrote a summary",
   },
   agentActionFallback: "Asked for something it is not allowed to do",
@@ -173,6 +181,11 @@ const ENGLISH: ResultsText = {
   agentSummaryTitle: "The agent's summary",
   agentEnglishOnly: "",
   agentAgain: "Run again",
+  agentReportTitle: "A report you can copy",
+  agentReportLead:
+    "Filled in from a fixed template, not written by the model. Second Look does not send it anywhere: use it when you call 1930 or file a complaint.",
+  agentCopy: "Copy report",
+  agentCopied: "Copied",
   classifierTitle: "Auxiliary signal",
   experimental: "Experimental",
   classifierHeadlines: {
@@ -292,9 +305,13 @@ const HINDI: ResultsText = {
   agentError: "एजेंट अभी नहीं चल सका। ऊपर दिए गए नतीजों पर इसका कोई असर नहीं पड़ा है।",
   agentTraceTitle: "एजेंट ने क्या किया",
   agentActions: {
-    analyze: "आपके संदेश पर जाँचें चलाईं",
+    check_warning_signs: "चेतावनी संकेत जाँचे",
+    search_guidance: "आधिकारिक मार्गदर्शन में खोजा",
+    estimate_language: "भाषा का अनुमान लगाया",
+    spam_signal: "पुराने SMS स्पैम से तुलना की",
     ask_user: "आपसे एक सवाल पूछा",
     next_steps: "आधिकारिक कदम देखे",
+    prepare_report: "आपके लिए रिपोर्ट तैयार की",
     finish: "सारांश लिखा",
   },
   agentActionFallback: "ऐसा काम माँगा जिसकी उसे अनुमति नहीं है",
@@ -304,6 +321,11 @@ const HINDI: ResultsText = {
   agentSummaryTitle: "एजेंट का सारांश",
   agentEnglishOnly: "एजेंट का सारांश और उसके कदमों का ब्योरा केवल अंग्रेज़ी में उपलब्ध है।",
   agentAgain: "फिर से चलाएँ",
+  agentReportTitle: "रिपोर्ट, जिसे आप कॉपी कर सकते हैं",
+  agentReportLead:
+    "यह एक तय ढाँचे से भरी गई है, मॉडल ने इसे नहीं लिखा। Second Look इसे कहीं नहीं भेजता: 1930 पर कॉल करते या शिकायत दर्ज करते समय इसका इस्तेमाल करें। रिपोर्ट अंग्रेज़ी में है।",
+  agentCopy: "रिपोर्ट कॉपी करें",
+  agentCopied: "कॉपी हो गई",
   classifierTitle: "सहायक संकेत",
   experimental: "प्रायोगिक",
   classifierHeadlines: {

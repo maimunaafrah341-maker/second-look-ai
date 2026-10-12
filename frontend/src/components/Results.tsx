@@ -273,6 +273,17 @@ function NextSteps({ language, text }: Presentation) {
 
 type AgentState = { status: "idle" | "loading" | "error" } | { status: "ready"; data: AgentResponse };
 
+interface AgentReport {
+  kind: "report";
+  title: string;
+  text: string;
+}
+
+function isReport(result: unknown): result is AgentReport {
+  const value = result as Partial<AgentReport> | null;
+  return Boolean(value && value.kind === "report" && typeof value.text === "string");
+}
+
 function isSituation(result: unknown): result is NextStepSituation {
   const value = result as Partial<NextStepSituation> | null;
   return Boolean(value && typeof value.id === "string" && Array.isArray(value.steps));
@@ -283,9 +294,11 @@ function isSituation(result: unknown): result is NextStepSituation {
  * a summary. Pressing the button sends the message to Google or Groq, and the notice above
  * the button says so. Nothing is sent until then.
  */
-function AgentInvestigation({ message, language, text }: { message: string } & Presentation) {
-  const [state, setState] = useState<AgentState>({ status: "idle" });
+function AgentInvestigation({ message, autoStart, language, text }: { message: string; autoStart: boolean } & Presentation) {
+  const [state, setState] = useState<AgentState>({ status: autoStart ? "loading" : "idle" });
+  const [copied, setCopied] = useState(false);
   const mounted = useRef(true);
+  const started = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -296,6 +309,7 @@ function AgentInvestigation({ message, language, text }: { message: string } & P
 
   const run = async (situation?: string) => {
     setState({ status: "loading" });
+    setCopied(false);
     try {
       const data = await investigate(message, situation);
       if (mounted.current) setState({ status: "ready", data });
@@ -304,8 +318,26 @@ function AgentInvestigation({ message, language, text }: { message: string } & P
     }
   };
 
+  // The person pressed "Investigate with agent" on the form, which carries the same notice.
+  useEffect(() => {
+    if (!autoStart || started.current) return;
+    started.current = true;
+    void run();
+  }, []);
+
   const data = state.status === "ready" ? state.data : null;
   const steps = data?.trace.map((entry) => entry.result).find(isSituation);
+  const report = data?.trace.map((entry) => entry.result).find(isReport);
+
+  const copyReport = async () => {
+    if (!report) return;
+    try {
+      await navigator.clipboard.writeText(report.text);
+      if (mounted.current) setCopied(true);
+    } catch {
+      // Copying can be blocked by the browser; the text stays on screen to select by hand.
+    }
+  };
 
   return (
     <section className="result-section" aria-labelledby="agent-title">
@@ -380,6 +412,24 @@ function AgentInvestigation({ message, language, text }: { message: string } & P
                 {/* The model's own words, shown only after the server's check accepted them. */}
                 <p lang="en">{data.text}</p>
               </div>
+              {report && (
+                <div className="agent__report card">
+                  <h4 className="agent__heading">{text.agentReportTitle}</h4>
+                  <p className="agent__report-lead">{text.agentReportLead}</p>
+                  {/* Assembled by the server from a template; it includes the person's own message. */}
+                  <pre className="agent__report-text" lang="en" dir="auto" tabIndex={0}>
+                    {report.text}
+                  </pre>
+                  <div>
+                    <button type="button" className="button button--primary button--compact" onClick={copyReport}>
+                      {copied ? text.agentCopied : text.agentCopy}
+                    </button>
+                    <span className="visually-hidden" role="status">
+                      {copied ? text.agentCopied : ""}
+                    </span>
+                  </div>
+                </div>
+              )}
               {steps && (
                 <ol className="guidance-list">
                   {steps.steps.map((step) => (
@@ -429,13 +479,15 @@ function ClassifierSignal({ classifier, language, text }: { classifier: Classifi
 interface ResultsProps {
   message: string;
   data: AnalyzeResponse;
+  /** True when the person chose "Investigate with agent": the agent starts with the results. */
+  startAgent?: boolean;
   language: ResultsLanguage;
   onLanguageChange: (language: ResultsLanguage) => void;
   onCheckAnother: () => void;
 }
 
 export const Results = forwardRef<HTMLHeadingElement, ResultsProps>(function Results(
-  { message, data, language, onLanguageChange, onCheckAnother },
+  { message, data, startAgent = false, language, onLanguageChange, onCheckAnother },
   headingRef,
 ) {
   const text = RESULTS_TEXT[language];
@@ -479,6 +531,8 @@ export const Results = forwardRef<HTMLHeadingElement, ResultsProps>(function Res
           </div>
 
           <SubmittedMessage message={message} findings={data.findings} detected={data.language} {...presentation} />
+
+          <AgentInvestigation key={message} message={message} autoStart={startAgent} {...presentation} />
 
           <section className="result-section" aria-labelledby="findings-title">
             <SectionHeading id="findings-title" step={text.findingsStep} title={text.findingsTitle}>
@@ -537,8 +591,6 @@ export const Results = forwardRef<HTMLHeadingElement, ResultsProps>(function Res
           </section>
 
           <NextSteps {...presentation} />
-
-          <AgentInvestigation key={message} message={message} {...presentation} />
 
           <ClassifierSignal classifier={data.classifier} {...presentation} />
 

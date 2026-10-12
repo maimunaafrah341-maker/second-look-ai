@@ -227,7 +227,7 @@ test.each([
 
   // Presentation is Hindi.
   expect(headings(2)).toEqual([hindiTitle]);
-  expect(headings(3)).toEqual(["आपका संदेश", "चेतावनी संकेत", "आधिकारिक स्रोत क्या कहते हैं", "सुरक्षित अगले कदम", "आगे क्या हुआ?", "एजेंट से जाँच कराएँ", "सहायक संकेत"]);
+  expect(headings(3)).toEqual(["आपका संदेश", "एजेंट से जाँच कराएँ", "चेतावनी संकेत", "आधिकारिक स्रोत क्या कहते हैं", "सुरक्षित अगले कदम", "आगे क्या हुआ?", "सहायक संकेत"]);
   const hindi = RESULTS_TEXT.hi;
   for (const finding of fixture.response.findings) {
     expect(within(results()).getByRole("heading", { level: 4, name: hindi.categoryLabels[finding.category] })).toBeInTheDocument();
@@ -268,7 +268,7 @@ test.each([
   await user.selectOptions(selector(), "en");
 
   expect(headings(2)).toEqual([englishTitle]);
-  expect(headings(3)).toEqual(["Your message", "Warning signs", "What official sources say", "Safer next steps", "What happened next?", "Investigate with agent", "Auxiliary signal"]);
+  expect(headings(3)).toEqual(["Your message", "Investigate with agent", "Warning signs", "What official sources say", "Safer next steps", "What happened next?", "Auxiliary signal"]);
   expect(screen.queryByText(HINDI_EXPLANATION_LABEL)).toBeNull();
   expect(evidence()).toEqual(before.evidence);
   expect(fetchMock).toHaveBeenCalledTimes(1);

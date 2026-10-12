@@ -17,6 +17,8 @@ interface AnalyzerProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  /** Analyze, then also run the optional agent. */
+  onInvestigate: () => void;
   onClear: () => void;
   busy: boolean;
   problem: InputProblem;
@@ -29,6 +31,7 @@ export function Analyzer({
   value,
   onChange,
   onSubmit,
+  onInvestigate,
   onClear,
   busy,
   problem,
@@ -112,6 +115,10 @@ export function Analyzer({
                 {busy ? <span className="spinner" aria-hidden="true" /> : <Icon name="sparkle" size={18} />}
                 {busy ? "Analyzing…" : "Analyze message"}
               </button>
+              <button type="button" className="button button--secondary" onClick={onInvestigate} disabled={busy}>
+                <Icon name="sparkle" size={18} />
+                Investigate with agent
+              </button>
               <button type="button" className="button button--ghost" onClick={onClear} disabled={busy || value === ""}>
                 Clear
               </button>
@@ -146,6 +153,12 @@ export function Analyzer({
               )}
             </div>
           </div>
+
+          <p className="analyzer__agent-note">
+            <Icon name="alert" size={15} />
+            “Investigate with agent” uses a language model and sends your message to Google or Groq. “Analyze
+            message” does not.
+          </p>
 
           <p className="analyzer__disclaimer">
             <Icon name="info" size={15} />

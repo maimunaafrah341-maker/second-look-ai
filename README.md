@@ -128,9 +128,11 @@ Details are in [docs/classifier.md](docs/classifier.md).
 
 The model is given very little to do, and the limits are in code ([backend/app/agent.py](backend/app/agent.py)) rather than in the prompt:
 
-- **A fixed list of actions.** In each step the model picks one of four: run the analysis above, ask the person one question, fetch the next steps, or finish with a short summary. Anything else is refused. The model cannot supply the message, the question or the answer.
+- **A fixed list of actions.** In each step the model picks one of eight: one of the four checks above (warning signs, guidance search, language estimate, spam signal), ask the person one question, fetch the next steps, prepare a report, or finish with a short summary. Anything else is refused. The model decides which checks to run and in what order, but it cannot supply the message, the question or the answer.
+- **Searching again.** The model may search the guidance a second time with up to six plain lowercase words of its own, when searching with the message finds nothing. Those words are shown in the trace. What comes back is still only a passage from the verified corpus.
+- **A report written by code.** "Prepare a report" fills a fixed template with the person's message, the warning signs, their answer and the official reporting passage, for them to copy when they call 1930 or file a complaint. The model writes none of it, and Second Look does not send it anywhere.
 - **One fixed question.** The agent can only ask "What have you done so far?", answered with the four choices from part 4. No text typed by the person reaches the model except the message itself.
-- **At most five steps**, each shown to the person as a trace.
+- **At most eight steps**, each shown to the person as a trace.
 - **No verdicts.** Before a summary is shown, a check rejects any statement that the message is, or is not, a scam, safe, genuine or fraudulent, along with likelihoods, links, text that is not in English, and long numbers. The helpline 1930 and an amount copied from the message are allowed; a phone number from the message is not. "This matches patterns common in scams" is allowed. A rejected summary is never shown; the model gets two more tries, and after that a fixed sentence is shown instead.
 - **Nothing is kept.** Each request starts again from the first step. The answer to the question is sent with the message in a new request.
 
