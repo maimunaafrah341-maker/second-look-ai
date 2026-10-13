@@ -681,6 +681,52 @@ def test_raises_when_both_providers_fail(monkeypatch):
         call_llm("s", "p")
 
 
+def rate_limited(retry_after=None):
+    headers = {"Retry-After": retry_after} if retry_after else {}
+    return urllib.error.HTTPError("https://example.invalid", 429, "Too Many Requests", headers, None)
+
+
+def test_waits_and_tries_once_more_when_a_provider_is_over_its_rate_limit(monkeypatch):
+    waits = []
+    monkeypatch.setattr(agent_module.time, "sleep", waits.append)
+    replies = {"gemini": [rate_limited("3"), '{"action": "finish", "args": {}}'], "groq": [rate_limited("40")]}
+    calls = []
+
+    def make(name):
+        def ask(system, prompt):
+            calls.append(name)
+            reply = replies[name].pop(0)
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
+
+        return name, ask
+
+    monkeypatch.setattr(agent_module, "PROVIDERS", (make("gemini"), make("groq")))
+
+    assert call_llm("s", "p")["provider"] == "gemini"
+    assert calls == ["gemini", "groq", "gemini"]
+    # The longest wait asked for, capped.
+    assert waits == [agent_module.MAX_RATE_LIMIT_WAIT_SECONDS]
+
+
+def test_gives_up_after_one_wait_and_does_not_wait_for_other_failures(monkeypatch):
+    waits = []
+    monkeypatch.setattr(agent_module.time, "sleep", waits.append)
+
+    calls = providers(monkeypatch, rate_limited(), rate_limited())
+    with pytest.raises(AgentUnavailable):
+        call_llm("s", "p")
+    assert calls == ["gemini", "groq", "gemini", "groq"]
+    assert waits == [agent_module.RATE_LIMIT_WAIT_SECONDS]
+
+    waits.clear()
+    providers(monkeypatch, urllib.error.URLError("down"), "not json")
+    with pytest.raises(AgentUnavailable):
+        call_llm("s", "p")
+    assert waits == []
+
+
 def test_no_request_is_made_without_keys(monkeypatch):
     monkeypatch.delenv(agent_module.GEMINI_KEY_ENV, raising=False)
     monkeypatch.delenv(agent_module.GROQ_KEY_ENV, raising=False)

@@ -20,6 +20,7 @@ answer comes back in a new request and the run starts again from the first step.
 import json
 import os
 import re
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -36,6 +37,11 @@ MAX_SEARCH_TERMS = 6
 MAX_REASON_LENGTH = 200
 MAX_FINAL_TEXT_LENGTH = 700
 LLM_TIMEOUT_SECONDS = 20
+# Free-tier keys are limited per minute. When a provider says it is over its limit and no
+# other provider answered, wait this long (or as long as it asks, up to the maximum) and
+# try once more, rather than reporting the agent as unavailable.
+RATE_LIMIT_WAIT_SECONDS = 8.0
+MAX_RATE_LIMIT_WAIT_SECONDS = 15.0
 
 GEMINI_KEY_ENV = "GEMINI_API_KEY"
 GEMINI_MODEL_ENV = "GEMINI_MODEL"
@@ -396,15 +402,33 @@ def call_llm(system: str, prompt: str) -> dict:
     """Ask Gemini, then Groq, for the next step. Returns {"action", "args", "reason", "provider"}.
 
     A provider is skipped when it has no key, fails, times out, or returns something that
-    is not the expected JSON. Nothing about the request or the reply is logged.
+    is not the expected JSON. If none answers and one was over its rate limit, both are
+    tried once more after a short wait. Nothing about the request or the reply is logged.
     """
-    for name, ask in PROVIDERS:
-        try:
-            decision = parse_decision(ask(system, prompt))
-        except (AgentUnavailable, urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError):
-            continue
-        return {**decision, "provider": name}
+    for attempt in range(2):
+        wait = None
+        for name, ask in PROVIDERS:
+            try:
+                decision = parse_decision(ask(system, prompt))
+            except urllib.error.HTTPError as error:
+                if error.code == 429:
+                    wait = max(wait or 0.0, _retry_after(error))
+                continue
+            except (AgentUnavailable, urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError):
+                continue
+            return {**decision, "provider": name}
+        if wait is None or attempt:
+            break
+        time.sleep(wait)
     raise AgentUnavailable("no provider returned a usable decision")
+
+
+def _retry_after(error: urllib.error.HTTPError) -> float:
+    try:
+        asked = float(error.headers.get("Retry-After", ""))
+    except (TypeError, ValueError, AttributeError):
+        asked = RATE_LIMIT_WAIT_SECONDS
+    return min(max(asked, 1.0), MAX_RATE_LIMIT_WAIT_SECONDS)
 
 
 # --- The loop ----------------------------------------------------------------------------
