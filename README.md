@@ -6,6 +6,8 @@ Second Look helps people in India take a second look at a suspicious SMS, WhatsA
 
 It does not decide whether a message is a scam. It shows evidence and official advice, and it says plainly what it could not check.
 
+An optional AI agent can run the investigation for you. It chooses which checks to run, asks what has happened, and prepares a report you can copy. Its limits are enforced in code, so a scam message cannot talk it into calling anything safe.
+
 - **Live app:** https://second-look-ai-1.onrender.com
 - **Backend health check:** https://second-look-ai.onrender.com/health
 - **Source:** https://github.com/maimunaafrah341-maker/second-look-ai
@@ -26,6 +28,7 @@ Second Look takes a different approach. It slows the reader down, shows exactly 
 
 | Feature | What you see |
 | --- | --- |
+| AI agent (optional) | A language model picks which checks to run, shows each step and its reason, asks one fixed question, and prepares a report to copy. It sends the message to Google or Groq, and says so before you press the button |
 | Warning signs | Up to four rule-based findings, each with the exact excerpt from your message and a plain-language reason |
 | Official guidance | Matching passages from Indian government cyber-safety documents, with publisher, section, date and a link to the source |
 | Safer next steps | General steps for any suspicious message, plus a "What happened next?" chooser for people who have already clicked, shared details or lost money |
@@ -33,11 +36,29 @@ Second Look takes a different approach. It slows the reader down, shows exactly 
 | Honest coverage | A label and summary that say when a message was only partly checked, or not checked at all |
 | Auxiliary signal | An experimental spam-likeness label, shown last and clearly marked as not a fraud judgement |
 
+### The AI agent
+
+The agent shows every step it took and why, then asks its one question. The answers are fixed choices, so nothing typed by the person reaches the model except the message itself.
+
+![The agent's steps with a reason for each, and its question with four fixed answers](docs/screenshots/agent-question-light.png)
+
+After the answer it looks up the official steps, prepares a report and writes a short summary. The summary is shown only if it passes a check that rejects any statement that the message is, or is not, a scam. The report is filled in by code from a fixed template.
+
+![The agent's summary, the report to copy, and the official steps with a Call 1930 button](docs/screenshots/agent-finished-light.png)
+
+With Hindi results the report is laid out in Hindi. The message and the quoted excerpts stay exactly as received.
+
+![The report in Hindi, with a link to see it in English](docs/screenshots/agent-report-hindi-light.png)
+
 ### English results
+
+The warning signs and official guidance are the same with or without the agent.
 
 ![Results for an English message, light theme](docs/screenshots/results-english-light.png)
 
 ### Hindi results, dark theme
+
+This screenshot and the two after it were taken before the agent was added, so they do not show its section.
 
 The same analysis, presented in Hindi. The message, the quoted excerpts and the names of official sources are never translated. The Hindi text was written by this project and has not been reviewed by a language specialist; the app says so on screen.
 

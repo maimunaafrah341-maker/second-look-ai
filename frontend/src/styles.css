@@ -1244,7 +1244,13 @@ textarea {
   display: grid;
   gap: 10px;
   margin: 12px 0 0;
-  padding-left: 1.4em;
+  padding-left: 1.6em;
+  list-style: decimal;
+}
+
+.agent__step::marker {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .agent__step > * {
@@ -1315,7 +1321,7 @@ textarea {
 }
 
 .agent__report-text {
-  max-height: 320px;
+  max-height: 560px;
   margin: 0;
   padding: 12px 14px;
   overflow: auto;
