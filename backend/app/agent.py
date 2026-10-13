@@ -112,7 +112,8 @@ How to work:
 Rules for the "{FINISH}" text:
 - English, plain words, at most 80 words.
 - Describe only what the actions returned: which warning signs were found, which official guidance matched, the steps for the person's answer, and that a report is ready if you prepared one.
-- Never say or imply whether the message is or is not a scam, fraud, fake, safe, genuine or legitimate, and give no likelihood, score or percentage. You may say that it matches patterns common in scams, but only when "check_warning_signs" found at least one warning sign.
+- Never say or imply whether the message is or is not a scam, fraud, fake, safe, genuine or legitimate, and give no likelihood, score or percentage. You may say that it matches patterns common in scams, but only when "check_warning_signs" found at least one warning sign. When it found none, write "no warning signs were found" and do not describe any.
+- Never tell the person that no action is needed. Finding no warning signs does not show a message is harmless; say they can still verify through an official channel.
 - Do not write links. The only numbers of four or more digits you may write are amounts copied from the message, and 1930 when the steps mention it. Never write a phone number from the message.
 - If your text is rejected, rewrite it to follow these rules.
 """
@@ -222,9 +223,14 @@ def build_tools(
         reason = check_final_text(args.get("text"), message)
         if reason:
             raise SummaryRejected(reason)
-        # "Matches patterns common in scams" is allowed only when the rules found something.
-        if _PATTERN_CLAIM.search(_normalize(args["text"])) and not warning_signs(message)["findings"]:
-            raise SummaryRejected("it says the message matches scam patterns, but the checks found no warning signs")
+        if not warning_signs(message)["findings"]:
+            normalized = _normalize(args["text"])
+            # "Matches patterns common in scams" is allowed only when the rules found something.
+            if _PATTERN_CLAIM.search(normalized):
+                raise SummaryRejected("it says the message matches scam patterns, but the checks found no warning signs")
+            # And a summary may not describe warning signs the rules did not find.
+            if not _NO_FINDINGS_STATED.search(normalized):
+                raise SummaryRejected('the checks found no warning signs, so it must say "no warning signs were found"')
         return {"detail": "Summary accepted.", "result": None}
 
     return {
@@ -268,6 +274,14 @@ _VERDICTS = [
         "it tells the person not to worry",
     ),
     (re.compile(r"\bnothing\s+(?:\w+\s+)?(?:suspicious|wrong|unusual|harmful)\b"), "it says nothing is wrong"),
+    (
+        re.compile(
+            r"\b(?:no|not|n't|without)\s+(?:\w+\s+){0,3}(?:need|have|required?)\s+to\s+(?:take|do)\b"
+            r"|\bno\s+(?:further\s+)?action\s+(?:is\s+)?(?:needed|required|necessary)\b"
+            r"|\bnothing\s+(?:more\s+)?to\s+do\b"
+        ),
+        "it tells the person no action is needed",
+    ),
     (re.compile(rf"{_NEGATION}{_INTENSIFIER}{_SCAM_WORD}"), "it rules out a scam"),
     (re.compile(r"(?:\bnot|n't|\bnever)\s+(?:\w+\s+){0,2}(?:suspicious|risky|a\s+threat)\b"), "it rules out a scam"),
     (re.compile(rf"\b{_STATE}{_INTENSIFIER}{_SCAM_WORD}"), "it calls the message a scam"),
@@ -286,6 +300,7 @@ _VERDICTS = [
     (re.compile(r"\bsafe\s+h(?:ai|ain|e)\b|\bscam\s+h(?:ai|e)\b"), "it gives a verdict"),
 ]
 # Pattern language is allowed, but it has to be backed by a finding (see run_finish).
+_NO_FINDINGS_STATED = re.compile(r"\bno warning signs?\b|\bnone of the warning signs\b|\b(?:did not|didn't) find (?:any )?warning signs?\b")
 _PATTERN_CLAIM = re.compile(r"\bpatterns?\b[^.!?]{0,60}\b(?:scams?|fraud|phishing|spam)\b|\bcommon (?:in|to|among) (?:scams?|fraud|phishing)\b")
 _LINK = re.compile(r"https?://|www\.|\b[\w-]+\.(?:com|in|org|net|co|gov|info|xyz|ly)\b")
 _DIGITS = re.compile(r"\d{1,3}(?:,\d{2,3})+|\d[\d\s-]{3,}\d|\d{4,}")

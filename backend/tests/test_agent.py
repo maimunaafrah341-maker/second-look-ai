@@ -413,6 +413,9 @@ def test_summaries_without_a_verdict_are_allowed(text):
         "There is a 90% chance of fraud.",
         "Verdict: suspicious.",
         "No warning signs, but that does not mean the message is safe.",
+        "The message has no warning signs. You do not need to take any action.",
+        "No warning signs were found, so no action is needed.",
+        "There is nothing more to do.",
     ],
 )
 def test_verdicts_in_either_direction_are_rejected(text):
@@ -501,6 +504,18 @@ def test_a_pattern_claim_needs_a_warning_sign_behind_it(script, text):
     # The same sentence is fine for a message where the rules did find something.
     script(step("check_warning_signs"), step("next_steps"), step("finish", text=text))
     assert run(SCAM, situation="not_responded")["status"] == "finished"
+
+
+def test_a_summary_may_not_describe_warning_signs_the_rules_did_not_find(script):
+    invented = "The checks found a phone number instruction. Official guidance advises against replying."
+    honest = "No warning signs were found. The official steps say not to reply to unexpected messages."
+    script(step("check_warning_signs"), step("next_steps"), step("finish", text=invented), step("finish", text=honest))
+
+    body = run(BENIGN, situation="not_responded")
+
+    assert [entry["outcome"] for entry in body["trace"]] == ["ok", "ok", "rejected", "ok"]
+    assert body["text"] == honest
+    assert invented not in json.dumps(body)
 
 
 def test_requests_name_their_client(monkeypatch):
