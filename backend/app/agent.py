@@ -44,9 +44,10 @@ GROQ_MODEL_ENV = "GROQ_MODEL"
 # Defaults taken from the providers' model lists. They change often: set the environment
 # variable rather than editing these if a provider retires one.
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+USER_AGENT = "second-look/0.1"
 
 FINISHED = "finished"
 NEEDS_INPUT = "needs_input"
@@ -105,7 +106,7 @@ How to work:
 Rules for the "{FINISH}" text:
 - English, plain words, at most 80 words.
 - Describe only what the actions returned: which warning signs were found, which official guidance matched, the steps for the person's answer, and that a report is ready if you prepared one.
-- Never say or imply whether the message is or is not a scam, fraud, fake, safe, genuine or legitimate, and give no likelihood, score or percentage. You may say that it matches patterns common in scams.
+- Never say or imply whether the message is or is not a scam, fraud, fake, safe, genuine or legitimate, and give no likelihood, score or percentage. You may say that it matches patterns common in scams, but only when "check_warning_signs" found at least one warning sign.
 - Do not write links. The only numbers of four or more digits you may write are amounts copied from the message, and 1930 when the steps mention it. Never write a phone number from the message.
 - If your text is rejected, rewrite it to follow these rules.
 """
@@ -215,6 +216,9 @@ def build_tools(
         reason = check_final_text(args.get("text"), message)
         if reason:
             raise SummaryRejected(reason)
+        # "Matches patterns common in scams" is allowed only when the rules found something.
+        if _PATTERN_CLAIM.search(_normalize(args["text"])) and not warning_signs(message)["findings"]:
+            raise SummaryRejected("it says the message matches scam patterns, but the checks found no warning signs")
         return {"detail": "Summary accepted.", "result": None}
 
     return {
@@ -275,6 +279,8 @@ _VERDICTS = [
     (re.compile(r"\d\s*(?:%|percent\b)|\bprobability\b|\bverdict\b|\bscore\b|\bconfidence\b"), "it gives a likelihood or a verdict"),
     (re.compile(r"\bsafe\s+h(?:ai|ain|e)\b|\bscam\s+h(?:ai|e)\b"), "it gives a verdict"),
 ]
+# Pattern language is allowed, but it has to be backed by a finding (see run_finish).
+_PATTERN_CLAIM = re.compile(r"\bpatterns?\b[^.!?]{0,60}\b(?:scams?|fraud|phishing|spam)\b|\bcommon (?:in|to|among) (?:scams?|fraud|phishing)\b")
 _LINK = re.compile(r"https?://|www\.|\b[\w-]+\.(?:com|in|org|net|co|gov|info|xyz|ly)\b")
 _DIGITS = re.compile(r"\d{1,3}(?:,\d{2,3})+|\d[\d\s-]{3,}\d|\d{4,}")
 _HELPLINE = "1930"
@@ -326,7 +332,8 @@ def _post_json(url: str, headers: dict[str, str], body: dict) -> dict:
     request = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers},
+        # Groq's front end refuses Python's default User-Agent with HTTP 403, so name the client.
+        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT, **headers},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=LLM_TIMEOUT_SECONDS) as response:

@@ -155,7 +155,7 @@ const ENGLISH: ResultsText = {
   tryAgain: "Try again",
   // In English the labels come from the API; these are not used.
   situationLabels: {},
-  agentStep: "Optional · Uses a language model",
+  agentStep: "AI agent · Uses a language model",
   agentTitle: "Investigate with agent",
   agentLead:
     "A language model chooses which of the checks above to run, asks you one question, and writes a short summary. It cannot decide whether a message is a scam.",
@@ -297,7 +297,7 @@ const HINDI: ResultsText = {
     shared_details: "मैंने OTP, PIN, पासवर्ड, या कार्ड या बैंक की जानकारी बता दी",
     lost_money: "मैंने पैसे भेज दिए, या मेरे खाते से पैसे निकल गए",
   },
-  agentStep: "वैकल्पिक · भाषा मॉडल का इस्तेमाल",
+  agentStep: "AI एजेंट · भाषा मॉडल का इस्तेमाल",
   agentTitle: "एजेंट से जाँच कराएँ",
   agentLead:
     "एक भाषा मॉडल चुनता है कि ऊपर की कौन-सी जाँचें चलानी हैं, आपसे एक सवाल पूछता है और छोटा सारांश लिखता है। वह यह तय नहीं कर सकता कि संदेश ठगी है या नहीं।",

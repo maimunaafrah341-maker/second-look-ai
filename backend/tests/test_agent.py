@@ -478,6 +478,57 @@ def test_the_loop_checks_the_summary_against_the_message_it_was_given(script):
     assert run(SCAM, situation="not_responded")["trace"][-1]["outcome"] == "rejected"
 
 
+BENIGN = "Hi, are we still meeting for lunch at 1 pm tomorrow?"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "This matches patterns common in scams.",
+        "The message matches patterns common in scams by creating urgency about a debit.",
+        "It follows a pattern often seen in phishing.",
+        "Urgency like this is common in scams.",
+    ],
+)
+def test_a_pattern_claim_needs_a_warning_sign_behind_it(script, text):
+    # The rules found nothing in this message, so the model may not say it matches scam patterns.
+    script(step("check_warning_signs"), step("next_steps"), step("finish", text=text), step("finish", text="The checks found no warning signs."))
+    body = run(BENIGN, situation="not_responded")
+    assert [entry["outcome"] for entry in body["trace"]] == ["ok", "ok", "rejected", "ok"]
+    assert "found no warning signs" in body["trace"][2]["detail"]
+    assert body["text"] == "The checks found no warning signs."
+
+    # The same sentence is fine for a message where the rules did find something.
+    script(step("check_warning_signs"), step("next_steps"), step("finish", text=text))
+    assert run(SCAM, situation="not_responded")["status"] == "finished"
+
+
+def test_requests_name_their_client(monkeypatch):
+    seen = {}
+
+    class Reply:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(request, timeout):
+        seen.update(request.header_items())
+        return Reply()
+
+    monkeypatch.setattr(agent_module.urllib.request, "urlopen", fake_urlopen)
+
+    agent_module._post_json("https://example.invalid/x", {"Authorization": "Bearer k"}, {})
+
+    # Groq refuses Python's default User-Agent.
+    assert seen["User-agent"] == agent_module.USER_AGENT
+    assert seen["Authorization"] == "Bearer k"
+
+
 def test_rejected_summary_is_never_returned_and_the_model_gets_another_try(script):
     prompts = script(
         step("check_warning_signs"),

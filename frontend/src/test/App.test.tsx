@@ -482,7 +482,7 @@ test("the form's agent button says where the message goes, then analyzes and sta
 
   await user.click(input);
   await user.paste(englishScam.message);
-  await user.click(screen.getByRole("button", { name: "Investigate with agent" }));
+  await user.click(screen.getByRole("button", { name: "Investigate with AI agent" }));
 
   await within(agentSection()).findByRole("group", { name: "What have you done so far?" });
   expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/analyze", "/agent"]);

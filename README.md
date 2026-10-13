@@ -249,7 +249,7 @@ npm run build
 | `VITE_API_BASE_URL` | Frontend, at build time | Address of the backend when it is on a different origin |
 | `GEMINI_API_KEY` | Backend | Key for the agent's first provider. Unset means Gemini is skipped. |
 | `GROQ_API_KEY` | Backend | Key for the agent's fallback provider. With neither key set, the agent is unavailable. |
-| `GEMINI_MODEL`, `GROQ_MODEL` | Backend | Model names, defaulting to `gemini-3.5-flash-lite` and `llama-3.3-70b-versatile`. Providers rename and retire models; change these instead of the code. |
+| `GEMINI_MODEL`, `GROQ_MODEL` | Backend | Model names, defaulting to `gemini-3.5-flash-lite` and `openai/gpt-oss-120b`. Providers rename and retire models; change these instead of the code. |
 | `SECOND_LOOK_AGENT_REQUESTS_PER_MINUTE` | Backend | Agent requests allowed per caller each minute. Default 10. |
 | `SECOND_LOOK_AGENT_TOTAL_PER_MINUTE` | Backend | Agent requests allowed in total each minute. Default 60. |
 

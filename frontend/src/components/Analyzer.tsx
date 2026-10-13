@@ -48,7 +48,8 @@ export function Analyzer({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!busy) onSubmit();
+    // The form's main action is the agent. The plain analysis has its own button.
+    if (!busy) onInvestigate();
   };
 
   const chooseExample = (message: string) => {
@@ -70,7 +71,7 @@ export function Analyzer({
             </div>
             <p className="analyzer__privacy">
               <Icon name="lock" size={15} />
-              Sent only to analyze it. Not saved by the app.
+              Not saved by the app.
             </p>
           </div>
 
@@ -113,11 +114,10 @@ export function Analyzer({
             <div className="analyzer__primary-actions">
               <button type="submit" className="button button--primary" disabled={busy} aria-busy={busy}>
                 {busy ? <span className="spinner" aria-hidden="true" /> : <Icon name="sparkle" size={18} />}
-                {busy ? "Analyzing…" : "Analyze message"}
+                {busy ? "Analyzing…" : "Investigate with AI agent"}
               </button>
-              <button type="button" className="button button--secondary" onClick={onInvestigate} disabled={busy}>
-                <Icon name="sparkle" size={18} />
-                Investigate with agent
+              <button type="button" className="button button--secondary" onClick={onSubmit} disabled={busy} aria-busy={busy}>
+                Analyze message without AI
               </button>
               <button type="button" className="button button--ghost" onClick={onClear} disabled={busy || value === ""}>
                 Clear
@@ -156,8 +156,8 @@ export function Analyzer({
 
           <p className="analyzer__agent-note">
             <Icon name="alert" size={15} />
-            “Investigate with agent” uses a language model and sends your message to Google or Groq. “Analyze
-            message” does not.
+            “Investigate with AI agent” uses a language model and sends your message to Google or Groq. “Analyze
+            message without AI” runs the same checks and sends it nowhere else.
           </p>
 
           <p className="analyzer__disclaimer">
