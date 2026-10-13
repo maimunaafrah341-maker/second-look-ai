@@ -253,7 +253,7 @@ npm run build
 | `SECOND_LOOK_AGENT_REQUESTS_PER_MINUTE` | Backend | Agent requests allowed per caller each minute. Default 10. |
 | `SECOND_LOOK_AGENT_TOTAL_PER_MINUTE` | Backend | Agent requests allowed in total each minute. Default 60. |
 
-Keys belong in the host's environment settings, never in the repository. Behind a proxy such as Render's, every request appears to come from the proxy unless Uvicorn is told to trust its forwarded address (`FORWARDED_ALLOW_IPS`), so the per-caller limit then acts as a second overall limit.
+On your own machine, copy `.env.example` to `.env` and put the keys there; the backend reads that file when it starts, and git ignores it. On a host, keys belong in its environment settings, never in the repository. Behind a proxy such as Render's, every request appears to come from the proxy unless Uvicorn is told to trust its forwarded address (`FORWARDED_ALLOW_IPS`), so the per-caller limit then acts as a second overall limit.
 
 ## API
 

@@ -12,11 +12,15 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.agent import build_tools, run_agent
 from app.classifier import NOT_APPLICABLE, UNAVAILABLE, Classifier
+from app.env import load_env_file
 from app.guidance import GuidanceIndex
 from app.language import estimate_language
 from app.next_steps import resolve as resolve_next_steps
 from app.report import build_report
 from app.warning_signs import Finding, detect_warning_signs
+
+# For local development only: a hosting provider sets its own variables and has no .env file.
+load_env_file()
 
 MAX_MESSAGE_LENGTH = 5000
 
