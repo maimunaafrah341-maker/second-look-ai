@@ -382,20 +382,20 @@ function AgentInvestigation({ message, autoStart, language, text }: { message: s
                   {entry.outcome !== "ok" && (
                     <span className="pill pill--neutral">{text.agentOutcomes[entry.outcome] ?? entry.outcome}</span>
                   )}
+                  {entry.provider && text.agentProviders[entry.provider] && (
+                    <span className="agent__provider">{text.agentProviders[entry.provider]}</span>
+                  )}
+                  {/* The model's own words for why it took this step, shown only if the server's check accepted them. */}
+                  {entry.reason && (
+                    <span className="agent__reason">
+                      <strong>{text.agentWhy}</strong>
+                      <span lang="en">{entry.reason}</span>
+                    </span>
+                  )}
                   {/* Written by the server's code, not by the model, and only in English. */}
                   <span className="agent__detail" lang="en">
                     {entry.detail}
                   </span>
-                  {/* The model's own words for why it took this step, shown only if the server's check accepted them. */}
-                  {entry.reason && (
-                    <span className="agent__reason">
-                      {text.agentWhy}
-                      <span lang="en">{entry.reason}</span>
-                    </span>
-                  )}
-                  {entry.provider && text.agentProviders[entry.provider] && (
-                    <span className="agent__provider">{text.agentProviders[entry.provider]}</span>
-                  )}
                 </li>
               ))}
             </ol>

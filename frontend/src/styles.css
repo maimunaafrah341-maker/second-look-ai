@@ -1242,40 +1242,85 @@ textarea {
 
 .agent__steps {
   display: grid;
-  gap: 10px;
-  margin: 12px 0 0;
-  padding-left: 1.6em;
+  margin: 8px 0 0;
+  padding-left: 1.7em;
   list-style: decimal;
 }
 
+/* One step: what it did and who answered on the first line, why on the second, the result small below. */
+.agent__step {
+  padding: 12px 0;
+}
+
+.agent__step + .agent__step {
+  border-top: 1px solid var(--border);
+}
+
 .agent__step::marker {
-  color: var(--text-muted);
-  font-weight: 600;
+  color: var(--accent-text);
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .agent__step > * {
-  margin-right: 8px;
+  margin-right: 10px;
 }
 
 .agent__action {
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 650;
 }
 
-.agent__detail,
 .agent__provider {
+  display: inline-block;
+  padding: 1px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
   color: var(--text-muted);
-  font-size: 0.88rem;
-}
-
-.agent__detail {
-  display: block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .agent__reason {
   display: block;
-  margin-top: 2px;
-  font-size: 0.9rem;
-  font-style: italic;
+  margin-top: 6px;
+  color: var(--text-soft);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.agent__detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* The question is the one thing the person has to do, so it stands out. */
+.agent__question {
+  padding: 18px;
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  background: var(--accent-soft);
+}
+
+/* Floating the legend puts it inside the box instead of across its border. */
+.agent__question .agent__heading {
+  float: left;
+  width: 100%;
+  font-size: 1.2rem;
+}
+
+/* The summary is the agent's answer. */
+.agent__summary {
+  border-left: 4px solid var(--accent);
+}
+
+.agent__summary p {
+  font-size: 1.08rem;
+  line-height: 1.6;
 }
 
 .agent__report-actions {
@@ -1289,8 +1334,6 @@ textarea {
   display: grid;
   gap: 12px;
   margin: 0;
-  padding: 0;
-  border: 0;
 }
 
 .agent__answers {
