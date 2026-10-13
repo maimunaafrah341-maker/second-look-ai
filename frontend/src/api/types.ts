@@ -113,8 +113,24 @@ export interface AgentStep {
   args: Record<string, unknown>;
   outcome: "ok" | "refused" | "rejected";
   detail: string;
-  /** What the action returned: an /analyze response, one next-steps situation, or nothing. */
+  /** The model's one-line reason for the step, when it gave one that passed the server's check. */
+  reason: string | null;
+  /** What the action returned: part of an /analyze response, one next-steps situation, a report, or nothing. */
   result: unknown;
+}
+
+/** The report the agent can prepare: the English text, and the parts it was built from. */
+export interface AgentReport {
+  kind: "report";
+  title: string;
+  text: string;
+  parts?: {
+    date: string;
+    message: string;
+    answer_id: string | null;
+    findings: { category: string; evidence: string }[];
+    reporting: { summary: string; publisher: string; url: string };
+  };
 }
 
 export interface AgentResponse {

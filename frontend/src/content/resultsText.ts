@@ -74,6 +74,7 @@ export interface ResultsText {
   agentReportLead: string;
   agentCopy: string;
   agentCopied: string;
+  agentWhy: string;
   classifierTitle: string;
   experimental: string;
   classifierHeadlines: Record<string, string>;
@@ -186,6 +187,7 @@ const ENGLISH: ResultsText = {
     "Filled in from a fixed template, not written by the model. Second Look does not send it anywhere: use it when you call 1930 or file a complaint.",
   agentCopy: "Copy report",
   agentCopied: "Copied",
+  agentWhy: "Why: ",
   classifierTitle: "Auxiliary signal",
   experimental: "Experimental",
   classifierHeadlines: {
@@ -319,13 +321,14 @@ const HINDI: ResultsText = {
   agentProviders: { gemini: "Google Gemini के ज़रिए", groq: "Groq के ज़रिए" },
   agentQuestion: "अब तक आपने क्या किया है?",
   agentSummaryTitle: "एजेंट का सारांश",
-  agentEnglishOnly: "एजेंट का सारांश और उसके कदमों का ब्योरा केवल अंग्रेज़ी में उपलब्ध है।",
+  agentEnglishOnly: "एजेंट का सारांश, उसके कारण और कदमों का ब्योरा केवल अंग्रेज़ी में उपलब्ध है। रिपोर्ट हिन्दी में भी है।",
   agentAgain: "फिर से चलाएँ",
   agentReportTitle: "रिपोर्ट, जिसे आप कॉपी कर सकते हैं",
   agentReportLead:
-    "यह एक तय ढाँचे से भरी गई है, मॉडल ने इसे नहीं लिखा। Second Look इसे कहीं नहीं भेजता: 1930 पर कॉल करते या शिकायत दर्ज करते समय इसका इस्तेमाल करें। रिपोर्ट अंग्रेज़ी में है।",
+    "यह एक तय ढाँचे से भरी गई है, मॉडल ने इसे नहीं लिखा। Second Look इसे कहीं नहीं भेजता: 1930 पर कॉल करते या शिकायत दर्ज करते समय इसका इस्तेमाल करें। आपका संदेश और उसके अंश जैसे हैं वैसे ही रखे गए हैं।",
   agentCopy: "रिपोर्ट कॉपी करें",
   agentCopied: "कॉपी हो गई",
+  agentWhy: "क्यों: ",
   classifierTitle: "सहायक संकेत",
   experimental: "प्रायोगिक",
   classifierHeadlines: {

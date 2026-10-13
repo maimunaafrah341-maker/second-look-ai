@@ -28,6 +28,7 @@
       "args": {},
       "outcome": "ok",
       "detail": "3 warning sign(s): urgency pressure, credential request, link.",
+      "reason": "The message sets a deadline and asks for a code, so I am checking for warning signs first.",
       "result": {
         "findings": [
           {
@@ -56,6 +57,7 @@
       "args": {},
       "outcome": "ok",
       "detail": "2 official guidance match(es) for the message.",
+      "reason": "Looking for official guidance that covers a request like this one.",
       "result": {
         "matches": [
           {
@@ -112,6 +114,7 @@
       "args": {},
       "outcome": "ok",
       "detail": "Waiting for the person's answer.",
+      "reason": null,
       "result": null
     }
   ],

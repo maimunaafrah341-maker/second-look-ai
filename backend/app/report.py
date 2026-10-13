@@ -25,9 +25,18 @@ NO_FINDINGS = "None of the patterns Second Look checks for were found. It checks
 
 
 def build_report(
-    message: str, findings: list[Finding], answer: str | None, reporting: tuple[Passage, Source], today: date
+    message: str,
+    findings: list[Finding],
+    answer_id: str | None,
+    answer: str | None,
+    reporting: tuple[Passage, Source],
+    today: date,
 ) -> dict:
-    """Return {"kind", "title", "text"}: plain text the person can copy."""
+    """Return the report as plain text the person can copy, and the parts it was built from.
+
+    The parts let the page lay the same report out in another language. They hold nothing
+    that is not in the text.
+    """
     passage, source = reporting
     signs = [
         f'- {CATEGORY_LABELS.get(finding.category, finding.category)}: "{finding.evidence}"' for finding in findings
@@ -48,4 +57,15 @@ def build_report(
         "Where to report:",
         f"{passage.summary} (Source: {source.publisher}, {source.url})",
     ]
-    return {"kind": "report", "title": TITLE, "text": "\n".join(lines)}
+    return {
+        "kind": "report",
+        "title": TITLE,
+        "text": "\n".join(lines),
+        "parts": {
+            "date": today.isoformat(),
+            "message": message,
+            "answer_id": answer_id,
+            "findings": [{"category": finding.category, "evidence": finding.evidence} for finding in findings],
+            "reporting": {"summary": passage.summary, "publisher": source.publisher, "url": source.url},
+        },
+    }

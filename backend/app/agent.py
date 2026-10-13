@@ -33,6 +33,7 @@ MAX_STEPS = 8
 # into the fallback. The retries are still bounded.
 MAX_GUARD_RETRIES = 2
 MAX_SEARCH_TERMS = 6
+MAX_REASON_LENGTH = 200
 MAX_FINAL_TEXT_LENGTH = 700
 LLM_TIMEOUT_SECONDS = 20
 
@@ -80,7 +81,9 @@ UNAVAILABLE_TEXT = (
 
 SYSTEM_PROMPT = f"""You plan the steps for Second Look, a tool that helps a person look again at a suspicious message.
 
-Reply with one JSON object and nothing else: {{"action": "<name>", "args": {{...}}}}
+Reply with one JSON object and nothing else: {{"action": "<name>", "args": {{...}}, "reason": "<one short sentence>"}}
+
+"reason" says why you chose this step for this message, in at most 20 plain English words, for example "The message has a link and a deadline, so I am checking for warning signs first." It is shown to the person and must follow the same rules as the "finish" text below.
 
 Checks you can run on the message. Each takes one step, and you have "steps_left" steps, so pick the ones that fit this message:
 - "{WARNING_SIGNS}", args {{}}: rule-based patterns for urgency, requests for an OTP or password, links, and payment demands. Returns the exact excerpts.
@@ -368,18 +371,22 @@ PROVIDERS: tuple[tuple[str, Callable[[str, str], str]], ...] = (("gemini", _ask_
 
 
 def parse_decision(raw) -> dict:
-    """Turn a provider's reply into {"action", "args"}, or raise ValueError."""
+    """Turn a provider's reply into {"action", "args", "reason"}, or raise ValueError.
+
+    "reason" is optional: anything that is not a string becomes None.
+    """
     decision = json.loads(raw) if isinstance(raw, str) else raw
     if not isinstance(decision, dict) or not isinstance(decision.get("action"), str):
         raise ValueError("no action")
     args = decision.get("args", {})
     if not isinstance(args, dict):
         raise ValueError("args is not an object")
-    return {"action": decision["action"], "args": args}
+    reason = decision.get("reason")
+    return {"action": decision["action"], "args": args, "reason": reason if isinstance(reason, str) else None}
 
 
 def call_llm(system: str, prompt: str) -> dict:
-    """Ask Gemini, then Groq, for the next step. Returns {"action", "args", "provider"}.
+    """Ask Gemini, then Groq, for the next step. Returns {"action", "args", "reason", "provider"}.
 
     A provider is skipped when it has no key, fails, times out, or returns something that
     is not the expected JSON. Nothing about the request or the reply is logged.
@@ -428,6 +435,11 @@ def run_agent(
 
     def record(decision: dict, outcome: str, detail: str, result: dict | None = None, args: dict | None = None) -> None:
         action = _shown_action(decision["action"])
+        # The reason is the model's own words, so it is held to the same check as the summary.
+        # One that fails is left out; it does not stop the run.
+        reason = decision.get("reason")
+        if not isinstance(reason, str) or len(reason) > MAX_REASON_LENGTH or check_final_text(reason, message):
+            reason = None
         trace.append(
             {
                 "step": len(trace) + 1,
@@ -436,6 +448,7 @@ def run_agent(
                 "args": args or {},
                 "outcome": outcome,
                 "detail": detail,
+                "reason": reason,
                 "result": result,
             }
         )

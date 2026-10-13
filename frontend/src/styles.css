@@ -1265,6 +1265,20 @@ textarea {
   display: block;
 }
 
+.agent__reason {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.agent__report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
 .agent__question {
   display: grid;
   gap: 12px;

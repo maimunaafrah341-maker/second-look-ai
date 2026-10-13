@@ -208,6 +208,8 @@ class AgentStep(BaseModel):
     args: dict
     outcome: Literal["ok", "refused", "rejected"]
     detail: str
+    # The model's own one-line reason for the step, or None when it gave none or it failed the check.
+    reason: str | None
     result: dict | None
 
 
@@ -330,7 +332,7 @@ reporting_passage = guidance_index.verified_passage(REPORTING_PASSAGE_ID)
 
 def prepare_report(message: str, situation_id: str | None) -> dict:
     answer = SITUATION_LABELS.get(situation_id) if situation_id else None
-    return build_report(message, detect_warning_signs(message), answer, reporting_passage, date.today())
+    return build_report(message, detect_warning_signs(message), situation_id, answer, reporting_passage, date.today())
 
 
 # The only things the agent can do: the parts of /analyze as separate checks, the fixed next

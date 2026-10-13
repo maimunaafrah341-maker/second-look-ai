@@ -508,3 +508,50 @@ test("the report is shown in full and can be copied; nothing is sent when it is"
   expect(await navigator.clipboard.readText()).toBe(report.text);
   expect(fetchMock).toHaveBeenCalledTimes(3);
 });
+
+test("each step shows the agent's reason when the server let it through, and nothing when it did not", async () => {
+  const { user } = await openAgent(jsonResponse(agentQuestion), jsonResponse(agentFinished));
+  await user.click(within(agentSection()).getByRole("button", { name: "Investigate with agent" }));
+  await user.click(await within(agentSection()).findByRole("button", { name: "I paid, or money has left my account" }));
+  await within(agentSection()).findByText(agentFinished.text);
+
+  const steps = Array.from(agentSection().querySelectorAll(".agent__step"));
+  expect(steps[0].querySelector(".agent__reason")).toHaveTextContent(`Why: ${agentFinished.trace[0].reason}`);
+  // The refused step's reason failed the server's check, so the API sent none.
+  expect(agentFinished.trace[1].reason).toBeNull();
+  expect(steps[1].querySelector(".agent__reason")).toBeNull();
+  expect(steps[3].querySelector(".agent__reason")).toBeNull();
+});
+
+test("with Hindi results the report is in Hindi, keeps the message as received, and can be switched to English", async () => {
+  const { user } = await openAgent(jsonResponse(agentQuestion), jsonResponse(agentFinished));
+  await user.selectOptions(screen.getAllByRole("combobox", { name: /results language|परिणाम/i })[0], "hi");
+  await user.click(within(document.querySelector('[aria-labelledby="agent-title"]') as HTMLElement).getByRole("button"));
+  const section = document.querySelector('[aria-labelledby="agent-title"]') as HTMLElement;
+  await user.click(await within(section).findByRole("button", { name: "मैंने पैसे भेज दिए, या मेरे खाते से पैसे निकल गए" }));
+
+  const report = agentFinished.trace.find((step) => step.action === "prepare_report")!.result as {
+    text: string;
+    parts: { findings: { evidence: string }[]; reporting: { url: string } };
+  };
+  await within(section).findByRole("button", { name: "रिपोर्ट कॉपी करें" });
+  const shown = () => section.querySelector(".agent__report-text")?.textContent ?? "";
+
+  expect(shown()).toContain("संदिग्ध संदेश का रिकॉर्ड");
+  expect(shown()).toContain("यह इस बात का निष्कर्ष नहीं है कि संदेश धोखाधड़ी है");
+  expect(shown()).toContain("अब तक मैंने क्या किया है: मैंने पैसे भेज दिए, या मेरे खाते से पैसे निकल गए");
+  // The person's words, the excerpts and the source link are exactly as in the English report.
+  expect(shown()).toContain(englishScam.message);
+  for (const finding of report.parts.findings) expect(shown()).toContain(`"${finding.evidence}"`);
+  expect(shown()).toContain(report.parts.reporting.url);
+  expect(shown()).toContain("1930");
+  expect(shown().split("\n")).toHaveLength(report.text.split("\n").length);
+
+  await user.click(within(section).getByRole("button", { name: "रिपोर्ट कॉपी करें" }));
+  expect(await navigator.clipboard.readText()).toBe(shown());
+
+  await user.click(within(section).getByRole("button", { name: "अंग्रेज़ी में देखें" }));
+  expect(shown()).toBe(report.text);
+  await user.click(within(section).getByRole("button", { name: "हिन्दी में देखें" }));
+  expect(shown()).toContain("संदिग्ध संदेश का रिकॉर्ड");
+});

@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { fetchNextSteps, investigate } from "../api/client";
 import type {
+  AgentReport,
   AgentResponse,
   AnalyzeResponse,
   ClassifierSection,
@@ -22,6 +23,7 @@ import {
 import type { ResultsLanguage } from "../lib/resultsLanguage";
 import { summarizeResult } from "../lib/status";
 import { formatDate, highlightEvidence } from "../lib/text";
+import { hindiReport, SHOW_ENGLISH_REPORT, SHOW_HINDI_REPORT } from "../content/reportHindi";
 import { Icon } from "./Icon";
 import { ResultsLanguageSelect } from "./ResultsLanguageSelect";
 
@@ -273,12 +275,6 @@ function NextSteps({ language, text }: Presentation) {
 
 type AgentState = { status: "idle" | "loading" | "error" } | { status: "ready"; data: AgentResponse };
 
-interface AgentReport {
-  kind: "report";
-  title: string;
-  text: string;
-}
-
 function isReport(result: unknown): result is AgentReport {
   const value = result as Partial<AgentReport> | null;
   return Boolean(value && value.kind === "report" && typeof value.text === "string");
@@ -297,6 +293,8 @@ function isSituation(result: unknown): result is NextStepSituation {
 function AgentInvestigation({ message, autoStart, language, text }: { message: string; autoStart: boolean } & Presentation) {
   const [state, setState] = useState<AgentState>({ status: autoStart ? "loading" : "idle" });
   const [copied, setCopied] = useState(false);
+  // With Hindi results the report is shown in Hindi; the person can switch to the English one.
+  const [reportInEnglish, setReportInEnglish] = useState(false);
   const mounted = useRef(true);
   const started = useRef(false);
 
@@ -329,10 +327,13 @@ function AgentInvestigation({ message, autoStart, language, text }: { message: s
   const steps = data?.trace.map((entry) => entry.result).find(isSituation);
   const report = data?.trace.map((entry) => entry.result).find(isReport);
 
+  const reportHindi = report && language === "hi" ? hindiReport(report) : null;
+  const reportText = report ? (reportHindi && !reportInEnglish ? reportHindi : report.text) : "";
+
   const copyReport = async () => {
     if (!report) return;
     try {
-      await navigator.clipboard.writeText(report.text);
+      await navigator.clipboard.writeText(reportText);
       if (mounted.current) setCopied(true);
     } catch {
       // Copying can be blocked by the browser; the text stays on screen to select by hand.
@@ -385,6 +386,13 @@ function AgentInvestigation({ message, autoStart, language, text }: { message: s
                   <span className="agent__detail" lang="en">
                     {entry.detail}
                   </span>
+                  {/* The model's own words for why it took this step, shown only if the server's check accepted them. */}
+                  {entry.reason && (
+                    <span className="agent__reason">
+                      {text.agentWhy}
+                      <span lang="en">{entry.reason}</span>
+                    </span>
+                  )}
                   {entry.provider && text.agentProviders[entry.provider] && (
                     <span className="agent__provider">{text.agentProviders[entry.provider]}</span>
                   )}
@@ -417,13 +425,25 @@ function AgentInvestigation({ message, autoStart, language, text }: { message: s
                   <h4 className="agent__heading">{text.agentReportTitle}</h4>
                   <p className="agent__report-lead">{text.agentReportLead}</p>
                   {/* Assembled by the server from a template; it includes the person's own message. */}
-                  <pre className="agent__report-text" lang="en" dir="auto" tabIndex={0}>
-                    {report.text}
+                  <pre className="agent__report-text" lang={reportText === report.text ? "en" : "hi"} dir="auto" tabIndex={0}>
+                    {reportText}
                   </pre>
-                  <div>
+                  <div className="agent__report-actions">
                     <button type="button" className="button button--primary button--compact" onClick={copyReport}>
                       {copied ? text.agentCopied : text.agentCopy}
                     </button>
+                    {reportHindi && (
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => {
+                          setReportInEnglish((english) => !english);
+                          setCopied(false);
+                        }}
+                      >
+                        {reportInEnglish ? SHOW_HINDI_REPORT : SHOW_ENGLISH_REPORT}
+                      </button>
+                    )}
                     <span className="visually-hidden" role="status">
                       {copied ? text.agentCopied : ""}
                     </span>

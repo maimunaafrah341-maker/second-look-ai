@@ -77,7 +77,7 @@ def test_first_request_analyzes_then_asks_the_fixed_question(script):
     assert [option["id"] for option in body["options"]] == [situation.id for situation in SITUATIONS]
     assert [entry["action"] for entry in body["trace"]] == ["check_warning_signs", "ask_user"]
     for entry in body["trace"]:
-        assert set(entry) == {"step", "provider", "action", "args", "outcome", "detail", "result"}
+        assert set(entry) == {"step", "provider", "action", "args", "outcome", "detail", "reason", "result"}
     assert "Google or Groq" in body["notice"]
 
 
@@ -183,6 +183,64 @@ def test_search_words_must_be_a_few_plain_lowercase_words(script, terms):
     assert body["trace"][0]["args"] == {} and body["trace"][0]["result"] is None
 
 
+# --- A reason for each step ----------------------------------------------------------
+
+
+def reasoned(action: str, reason, **args) -> dict:
+    return {"action": action, "args": args, "reason": reason, "provider": "fake"}
+
+
+def test_a_reason_is_shown_with_its_step(script):
+    why = "The message has a deadline and asks for a code, so I am checking for warning signs first."
+    script(reasoned("check_warning_signs", why), step("ask_user"))
+
+    trace = run()["trace"]
+
+    assert trace[0]["reason"] == why
+    assert trace[1]["reason"] is None
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "This message is safe, so no checks are needed.",
+        "This is clearly a scam.",
+        "It looks legitimate to me.",
+        "Call 9876543210 to confirm.",
+        "See http://bit.ly/x",
+        "यह संदेश सुरक्षित है",
+        "x" * 201,
+        42,
+        ["a", "list"],
+    ],
+)
+def test_a_reason_that_fails_the_check_is_left_out_without_stopping_the_run(script, reason):
+    script(reasoned("check_warning_signs", reason), reasoned("next_steps", reason), reasoned("finish", reason, text=GOOD_SUMMARY))
+
+    body = run(situation="not_responded")
+
+    assert body["status"] == "finished"
+    assert [entry["outcome"] for entry in body["trace"]] == ["ok", "ok", "ok"]
+    assert [entry["reason"] for entry in body["trace"]] == [None, None, None]
+    if isinstance(reason, str):
+        assert reason not in json.dumps(body, ensure_ascii=False)
+
+
+def test_a_reason_on_a_refused_action_is_checked_too(script):
+    script(reasoned("mark_safe", "This message is safe."), step("ask_user"))
+
+    body = run()
+
+    assert body["trace"][0]["outcome"] == "refused" and body["trace"][0]["reason"] is None
+    assert "This message is safe" not in json.dumps(body)
+
+
+def test_provider_reply_may_carry_a_reason(monkeypatch):
+    providers(monkeypatch, '{"action": "spam_signal", "args": {}, "reason": "English text."}', "unused")
+
+    assert call_llm("s", "p")["reason"] == "English text."
+
+
 # --- The report ----------------------------------------------------------------------
 
 
@@ -192,7 +250,16 @@ def test_report_is_assembled_by_code_from_the_message_and_the_persons_answer(scr
     body = run(situation="shared_details")
 
     report = body["trace"][2]["result"]
-    assert set(report) == {"kind", "title", "text"} and report["kind"] == "report"
+    assert set(report) == {"kind", "title", "text", "parts"} and report["kind"] == "report"
+    # The parts hold nothing that is not in the text.
+    parts = report["parts"]
+    assert set(parts) == {"date", "message", "answer_id", "findings", "reporting"}
+    assert parts["message"] == SCAM and parts["answer_id"] == "shared_details"
+    assert parts["date"] in report["text"]
+    for finding in parts["findings"]:
+        assert set(finding) == {"category", "evidence"} and finding["evidence"] in report["text"]
+    for value in parts["reporting"].values():
+        assert value in report["text"]
     text = report["text"]
     assert SCAM in text
     assert "What I have done so far: I shared an OTP, PIN, password, or card or bank details" in text
@@ -531,7 +598,7 @@ def providers(monkeypatch, gemini, groq):
 def test_gemini_is_used_first(monkeypatch):
     calls = providers(monkeypatch, '{"action": "analyze", "args": {}}', '{"action": "finish", "args": {}}')
 
-    assert call_llm("s", "p") == {"action": "analyze", "args": {}, "provider": "gemini"}
+    assert call_llm("s", "p") == {"action": "analyze", "args": {}, "reason": None, "provider": "gemini"}
     assert calls == ["gemini"]
 
 
@@ -552,7 +619,7 @@ def test_gemini_is_used_first(monkeypatch):
 def test_falls_back_to_groq_when_gemini_fails_or_returns_the_wrong_shape(monkeypatch, gemini):
     calls = providers(monkeypatch, gemini, '{"action": "analyze"}')
 
-    assert call_llm("s", "p") == {"action": "analyze", "args": {}, "provider": "groq"}
+    assert call_llm("s", "p") == {"action": "analyze", "args": {}, "reason": None, "provider": "groq"}
     assert calls == ["gemini", "groq"]
 
 

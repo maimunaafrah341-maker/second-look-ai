@@ -11,6 +11,7 @@
       "args": {},
       "outcome": "ok",
       "detail": "3 warning sign(s): urgency pressure, credential request, link.",
+      "reason": "The message sets a deadline and asks for a code, so I am checking for warning signs first.",
       "result": {
         "findings": [
           {
@@ -39,6 +40,7 @@
       "args": {},
       "outcome": "refused",
       "detail": "That action is not on the allowlist.",
+      "reason": null,
       "result": null
     },
     {
@@ -54,6 +56,7 @@
       },
       "outcome": "ok",
       "detail": "0 official guidance match(es) for the words: otp, bank, link.",
+      "reason": "Looking for official guidance that covers a request like this one.",
       "result": {
         "matches": [],
         "notice": "No matching official guidance was found. The collection is small and English-only, so this does not mean the message is safe."
@@ -66,6 +69,7 @@
       "args": {},
       "outcome": "ok",
       "detail": "2 official step(s) for: I paid, or money has left my account",
+      "reason": null,
       "result": {
         "id": "lost_money",
         "label": "I paid, or money has left my account",
@@ -111,10 +115,35 @@
       "args": {},
       "outcome": "ok",
       "detail": "A record of the message is ready to copy.",
+      "reason": null,
       "result": {
         "kind": "report",
         "title": "Record of a suspicious message",
-        "text": "Record of a suspicious message\nPrepared with Second Look on 2026-10-12.\nThis is a record of a message I received. It is not a finding that the message is fraudulent.\n\nThe message, exactly as I received it:\nURGENT: Your SBI account will be blocked today. Update your KYC at http://bit.ly/kyc-update and share the OTP you receive.\n\nWhat I have done so far: I paid, or money has left my account\n\nWarning signs noticed by Second Look's rule-based checks:\n- Urgency, a threat or a deadline: \"URGENT\"\n- Asks for an OTP, PIN, password or banking details: \"update and share the OTP\"\n- Contains a link: \"http://bit.ly/kyc-update\"\n\nWhere to report:\nThe I4C website tells people to report cybercrime by calling the helpline 1930. (Source: Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India, https://i4c.mha.gov.in/)"
+        "text": "Record of a suspicious message\nPrepared with Second Look on 2026-10-13.\nThis is a record of a message I received. It is not a finding that the message is fraudulent.\n\nThe message, exactly as I received it:\nURGENT: Your SBI account will be blocked today. Update your KYC at http://bit.ly/kyc-update and share the OTP you receive.\n\nWhat I have done so far: I paid, or money has left my account\n\nWarning signs noticed by Second Look's rule-based checks:\n- Urgency, a threat or a deadline: \"URGENT\"\n- Asks for an OTP, PIN, password or banking details: \"update and share the OTP\"\n- Contains a link: \"http://bit.ly/kyc-update\"\n\nWhere to report:\nThe I4C website tells people to report cybercrime by calling the helpline 1930. (Source: Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India, https://i4c.mha.gov.in/)",
+        "parts": {
+          "date": "2026-10-13",
+          "message": "URGENT: Your SBI account will be blocked today. Update your KYC at http://bit.ly/kyc-update and share the OTP you receive.",
+          "answer_id": "lost_money",
+          "findings": [
+            {
+              "category": "urgency_pressure",
+              "evidence": "URGENT"
+            },
+            {
+              "category": "credential_request",
+              "evidence": "update and share the OTP"
+            },
+            {
+              "category": "link",
+              "evidence": "http://bit.ly/kyc-update"
+            }
+          ],
+          "reporting": {
+            "summary": "The I4C website tells people to report cybercrime by calling the helpline 1930.",
+            "publisher": "Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, Government of India",
+            "url": "https://i4c.mha.gov.in/"
+          }
+        }
       }
     },
     {
@@ -124,6 +153,7 @@
       "args": {},
       "outcome": "rejected",
       "detail": "Summary rejected: it vouches for the message.",
+      "reason": null,
       "result": null
     },
     {
@@ -135,6 +165,7 @@
       },
       "outcome": "ok",
       "detail": "Summary accepted.",
+      "reason": null,
       "result": null
     }
   ],
