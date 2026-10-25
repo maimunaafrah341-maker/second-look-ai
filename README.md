@@ -394,3 +394,7 @@ docs/                 Sources, evaluation, classifier and review documentation
 
 - Guidance documents are published by the Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, and the Indian Computer Emergency Response Team (CERT-In). Summaries are this project's own.
 - The UCI SMS Spam Collection (Tiago Almeida and José María Gómez Hidalgo), used under CC BY 4.0, trained the auxiliary classifier.
+
+## License
+
+MIT. See [LICENSE](LICENSE). The UCI SMS Spam Collection used to train the classifier keeps its own CC BY 4.0 licence, and the linked official guidance belongs to its publishers.
