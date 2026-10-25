@@ -88,6 +88,17 @@ The language is estimated automatically from the script and a few keywords, and 
 
 Rules and a term map for Telugu, Urdu and Bengali exist in the repository but are switched off. They were written by a non-native speaker and are waiting for review by native speakers ([docs/native_review_checklist.md](docs/native_review_checklist.md)). Tests confirm that no request can switch them on.
 
+## From code to production on GitLab
+
+Every change goes through GitLab CI/CD and GitLab Duo Agent Platform before it reaches the people using the site:
+
+- **On every merge request:** 698 backend and 123 frontend tests, SAST, secret detection, dependency audits, and a **quality gate** that re-measures the AI agent's guardrail, guidance retrieval, warning signs and the classifier, and blocks the merge if any number gets worse.
+- **GitLab Duo flows:** a safety review of each merge request against the project's rules in [AGENTS.md](AGENTS.md), and a triage flow that diagnoses any failed pipeline and reports it on the merge request or in a `production-health` issue.
+- **On merge to main:** deploy to Render, wait until the backend serves the new commit, then run live checks that include a full AI agent run and confirm no verdict reached the user.
+- **On a schedule:** the same live checks, as monitoring.
+
+Details, the before-and-after, and setup steps: [docs/gitlab_automation.md](docs/gitlab_automation.md).
+
 ## How it works
 
 ```
@@ -380,7 +391,7 @@ docs/                 Sources, evaluation, classifier and review documentation
 - The classifier reflects 2011 English SMS spam, not Indian fraud.
 - Hindi coverage is partial and unreviewed, and the Hindi results text is this project's own translation.
 - Only pasted text is analysed. Screenshots and images are not supported.
-- The optional agent sends the message to an outside company, depends on free-tier APIs that can be slow or unavailable, and writes its summary in English only. Its no-verdict check is a pattern list and has not been evaluated on real model output.
+- The optional agent sends the message to an outside company, depends on free-tier APIs that can be slow or unavailable, and writes its summary in English only. Its no-verdict check is a pattern list. It is measured on every merge request against 38 verdicts and 22 real model summaries, but it can still miss a verdict worded another way.
 - Only one browser engine was used for the automated checks of the deployed site.
 
 ## Future work

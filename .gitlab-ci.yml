@@ -1,0 +1,165 @@
+# Second Look on GitLab: the path from a merge request to a checked, live release.
+#
+# Merge request:  tests + build, security scans, dependency audit, quality gate
+#                 (GitLab Duo flows review the change and diagnose any failure; see .gitlab/duo/)
+# Merge to main:  the same checks, then deploy to Render, wait until the new commit is live,
+#                 and run the live checks, including one full AI agent run
+# Schedule:       the live checks alone, as monitoring. A failure starts the Duo triage flow.
+#
+# Set up once (see docs/gitlab_automation.md): CI/CD variables RENDER_BACKEND_DEPLOY_HOOK and
+# RENDER_FRONTEND_DEPLOY_HOOK (masked, protected), optionally GITHUB_MIRROR_REPO, and a
+# pipeline schedule for monitoring.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+stages:
+  - test
+  - quality
+  - deploy
+  - verify
+
+include:
+  - template: Jobs/SAST.latest.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.latest.gitlab-ci.yml
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHON_IMAGE: python:3.11-slim
+  NODE_IMAGE: node:22
+
+default:
+  interruptible: true
+
+.not-scheduled:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - when: on_success
+
+.python:
+  image: $PYTHON_IMAGE
+  cache:
+    key:
+      files: [requirements.txt, requirements-ml.txt, requirements-dev.txt]
+    paths: [.cache/pip]
+  before_script:
+    - pip install --quiet -r requirements-dev.txt
+
+# --- test --------------------------------------------------------------------------------
+
+backend-tests:
+  extends: [.python, .not-scheduled]
+  stage: test
+  script:
+    - python -m pytest -q --junitxml=backend-junit.xml
+  artifacts:
+    when: always
+    reports:
+      junit: backend-junit.xml
+
+frontend-tests:
+  extends: .not-scheduled
+  stage: test
+  image: $NODE_IMAGE
+  cache:
+    key:
+      files: [frontend/package-lock.json]
+    paths: [frontend/.npm]
+  script:
+    - cd frontend
+    - npm ci --cache .npm --prefer-offline --no-audit --no-fund
+    - npx vitest run --reporter=default --reporter=junit --outputFile.junit=frontend-junit.xml
+    - npm run build
+  artifacts:
+    when: always
+    reports:
+      junit: frontend/frontend-junit.xml
+
+# Known vulnerabilities in pinned dependencies. Reported on every change; they do not
+# block, because a new advisory can appear without any change to this project.
+python-dependency-audit:
+  extends: .not-scheduled
+  stage: test
+  image: $PYTHON_IMAGE
+  allow_failure: true
+  script:
+    - pip install --quiet pip-audit
+    - pip-audit -r requirements.txt -r requirements-ml.txt --desc on
+
+npm-dependency-audit:
+  extends: .not-scheduled
+  stage: test
+  image: $NODE_IMAGE
+  allow_failure: true
+  script:
+    - cd frontend
+    - npm audit --omit=dev --audit-level=high
+
+# --- quality -----------------------------------------------------------------------------
+
+quality-gate:
+  extends: [.python, .not-scheduled]
+  stage: quality
+  needs: []
+  script:
+    - python ml/src/ingest_sms_spam.py
+    - python backend/evaluation/quality_gate.py --require-classifier --report quality-report.md --json quality-report.json
+  artifacts:
+    when: always
+    expose_as: Quality gate report
+    paths:
+      - quality-report.md
+      - quality-report.json
+
+# --- deploy (main only) ------------------------------------------------------------------
+
+deploy-production:
+  stage: deploy
+  image: $PYTHON_IMAGE
+  needs: [backend-tests, frontend-tests, quality-gate]
+  resource_group: production
+  environment:
+    name: production
+    url: https://second-look-ai-1.onrender.com
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
+  script:
+    - python ops/release.py mirror --commit "$CI_COMMIT_SHA"
+    - python ops/release.py deploy
+    - python ops/release.py wait --commit "$CI_COMMIT_SHA" --timeout 1200
+
+verify-production:
+  stage: verify
+  image: $PYTHON_IMAGE
+  needs: [deploy-production]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
+  script:
+    - python ops/release.py smoke --agent --report live-checks.md
+  artifacts:
+    when: always
+    expose_as: Live checks
+    paths: [live-checks.md, live-checks.json]
+
+# --- monitoring (scheduled) --------------------------------------------------------------
+
+monitor-production:
+  stage: verify
+  image: $PYTHON_IMAGE
+  needs: []
+  interruptible: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - python ops/release.py smoke --agent --report live-checks.md
+  artifacts:
+    when: always
+    expose_as: Live checks
+    paths: [live-checks.md, live-checks.json]

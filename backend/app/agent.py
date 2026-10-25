@@ -220,17 +220,9 @@ def build_tools(
         return {"detail": "Waiting for the person's answer.", "result": None}
 
     def run_finish(message: str, situation: str | None, args: dict) -> dict:
-        reason = check_final_text(args.get("text"), message)
+        reason = check_summary(args.get("text"), message, bool(warning_signs(message)["findings"]))
         if reason:
             raise SummaryRejected(reason)
-        if not warning_signs(message)["findings"]:
-            normalized = _normalize(args["text"])
-            # "Matches patterns common in scams" is allowed only when the rules found something.
-            if _PATTERN_CLAIM.search(normalized):
-                raise SummaryRejected("it says the message matches scam patterns, but the checks found no warning signs")
-            # And a summary may not describe warning signs the rules did not find.
-            if not _NO_FINDINGS_STATED.search(normalized):
-                raise SummaryRejected('the checks found no warning signs, so it must say "no warning signs were found"')
         return {"detail": "Summary accepted.", "result": None}
 
     return {
@@ -258,12 +250,17 @@ _NEGATION = r"(?:\bnot|n't|\bnever|\bno|\bisnt|\bwithout)\s+(?:(?:be|look|looks|
 _SAFE_WORD = r"(?:safe|secure|legitimate|legit|genuine|authentic|trustworthy|harmless|benign|real|fine|ok|okay)\b"
 # Singular on purpose: "this matches patterns common in scams" stays allowed.
 _SCAM_WORD = r"(?:scam|fraud|fraudulent|phishing|fake|malicious|spam|hoax|dangerous|unsafe|harmful)\b"
+_LABEL = r"(?:safe|unsafe|scam|not a scam|fraud|fraudulent|genuine|legit|legitimate|fake|spam|ham|real)\b"
 _THING = r"(?:message|sms|text|email|mail|sender|bank|company|offer|link|site|website|request|notice|alert|call|number)\b"
 
 # Statements about this message, in either direction. General pattern language is not matched.
 _VERDICTS = [
     (re.compile(rf"\b{_STATE}{_INTENSIFIER}{_SAFE_WORD}"), "it vouches for the message"),
     (re.compile(r"\bsafe\s+(?:to|for)\b|\bsafely\b"), "it vouches for the message"),
+    (
+        re.compile(r"\b(?:safe|correct|right|sensible|wise)\s+(?:and\s+(?:safe|correct|right)\s+)?(?:thing|choice|option|step|move)\b"),
+        "it endorses doing what the message asks",
+    ),
     (re.compile(rf"\b(?:genuine|legitimate|legit|authentic|trustworthy)\s+{_THING}"), "it vouches for the message"),
     (
         re.compile(r"\byou\s+(?:can|may)\s+(?:safely\s+)?(?:trust|ignore|relax|proceed|go\s+ahead|click|open|pay|reply)\b"),
@@ -298,6 +295,11 @@ _VERDICTS = [
     (re.compile(r"\b(?:no|zero|low|little|minimal|high|medium)\s+risk\b|\brisk[\s-]free\b"), "it gives a risk level"),
     (re.compile(r"\d\s*(?:%|percent\b)|\bprobability\b|\bverdict\b|\bscore\b|\bconfidence\b"), "it gives a likelihood or a verdict"),
     (re.compile(r"\bsafe\s+h(?:ai|ain|e)\b|\bscam\s+h(?:ai|e)\b"), "it gives a verdict"),
+    # A bare label, or one after "answer:" and the like, as an injected message may ask for.
+    (
+        re.compile(rf"^\W*{_LABEL}\W*$|\b(?:answer|result|status|rating|classification|label|conclusion)\s*[:=-]\s*{_LABEL}"),
+        "it gives a verdict",
+    ),
 ]
 # Pattern language is allowed, but it has to be backed by a finding (see run_finish).
 _NO_FINDINGS_STATED = re.compile(r"\bno warning signs?\b|\bnone of the warning signs\b|\b(?:did not|didn't) find (?:any )?warning signs?\b")
@@ -316,6 +318,24 @@ def _normalize(text: str) -> str:
     text = unicodedata.normalize("NFKC", text).lower()
     text = text.replace("’", "'").replace("‘", "'").replace("`", "'")
     return re.sub(r"\s+", " ", text)
+
+
+def check_summary(text, message: str, rules_found_signs: bool) -> str | None:
+    """The full check on a summary: check_final_text, plus the rules that depend on whether
+    the rule-based checks found any warning sign in the message. Returns why the summary
+    must not be shown, or None. The quality gate measures this same function.
+    """
+    reason = check_final_text(text, message)
+    if reason or rules_found_signs:
+        return reason
+    normalized = _normalize(text)
+    # "Matches patterns common in scams" is allowed only when the rules found something.
+    if _PATTERN_CLAIM.search(normalized):
+        return "it says the message matches scam patterns, but the checks found no warning signs"
+    # And a summary may not describe warning signs the rules did not find.
+    if not _NO_FINDINGS_STATED.search(normalized):
+        return 'the checks found no warning signs, so it must say "no warning signs were found"'
+    return None
 
 
 def check_final_text(text, message: str = "") -> str | None:

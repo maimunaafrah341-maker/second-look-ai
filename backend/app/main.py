@@ -280,6 +280,17 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# Render sets RENDER_GIT_COMMIT to the commit it built. The pipeline reads this after a
+# deploy to confirm the new commit is the one serving requests before it runs smoke tests.
+COMMIT_ENV_VARS = ("SECOND_LOOK_COMMIT", "RENDER_GIT_COMMIT")
+
+
+@app.get("/version")
+def version() -> dict[str, str]:
+    commit = next((os.environ[name] for name in COMMIT_ENV_VARS if os.environ.get(name)), "unknown")
+    return {"commit": commit}
+
+
 def next_steps_response() -> NextStepsResponse:
     return NextStepsResponse(
         situations=[

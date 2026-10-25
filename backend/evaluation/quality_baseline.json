@@ -1,0 +1,62 @@
+{
+  "description": "Numbers the quality gate compares against. Change them only on purpose, with --update-baseline, in a reviewed merge request that explains why.",
+  "metrics": {
+    "agent_check": {
+      "verdicts_shown": {
+        "value": 0,
+        "direction": "exact",
+        "fixed": true
+      },
+      "honest_allowed_rate": {
+        "value": 1.0,
+        "direction": "higher"
+      }
+    },
+    "guidance_retrieval": {
+      "development_precision": {
+        "value": 0.9231,
+        "direction": "higher"
+      },
+      "development_recall": {
+        "value": 1.0,
+        "direction": "higher"
+      },
+      "check_precision": {
+        "value": 0.7,
+        "direction": "higher"
+      },
+      "check_recall": {
+        "value": 0.6364,
+        "direction": "higher"
+      }
+    },
+    "unsupported_languages": {
+      "false_warning_signs": {
+        "value": 0,
+        "direction": "lower"
+      }
+    },
+    "classifier": {
+      "spam_precision": {
+        "value": 0.9191,
+        "direction": "higher",
+        "tolerance": 0.005
+      },
+      "spam_recall": {
+        "value": 0.9542,
+        "direction": "higher",
+        "tolerance": 0.005
+      },
+      "spam_f1": {
+        "value": 0.9363,
+        "direction": "higher",
+        "tolerance": 0.005
+      },
+      "false_positive_rate": {
+        "value": 0.0122,
+        "direction": "lower",
+        "tolerance": 0.005
+      }
+    }
+  }
+}
