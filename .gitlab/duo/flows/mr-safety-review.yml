@@ -2,13 +2,12 @@
 # project's safety rules in AGENTS.md and posts one comment.
 #
 # Trigger: Merge request > Created (and optionally Assign reviewer, so it can be re-run).
-# Create it in the project under AI > Flows > New flow by pasting this file, then add the
+# Create it in the project under AI > Flows > New flow (display name and description go in
+# the form, not here: custom flows reject them) by pasting this file, then add the
 # trigger under AI > Triggers. See docs/gitlab_automation.md.
 
 version: "v1"
 environment: ambient
-name: "Second Look safety review"
-description: "Reviews a merge request against Second Look's safety rules (no verdicts, guardrails in code, privacy, quality gate, Hindi text) and posts one review comment."
 
 components:
   - name: "safety_reviewer"

@@ -42,6 +42,8 @@ def test_flow_follows_the_flow_registry_v1_format(path):
     flow = load(path)
 
     assert flow["version"] == "v1" and flow["environment"] == "ambient"
+    # Custom flows reject these v1 fields; the display name and description go in the form.
+    assert not {"name", "description", "product_group"} & set(flow)
     names = {component["name"] for component in flow["components"]}
     assert flow["flow"]["entry_point"] in names
     for router in flow["routers"]:

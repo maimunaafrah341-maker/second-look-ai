@@ -3,13 +3,12 @@
 # monitoring, opens an issue with the diagnosis and a proposed fix.
 #
 # Trigger: Pipeline events > Failed.
-# Create it under AI > Flows > New flow by pasting this file, then add the trigger under
+# Create it under AI > Flows > New flow (display name and description go in the form, not
+# here: custom flows reject them) by pasting this file, then add the trigger under
 # AI > Triggers. See docs/gitlab_automation.md.
 
 version: "v1"
 environment: ambient
-name: "Second Look pipeline triage"
-description: "Diagnoses a failed Second Look pipeline (tests, quality gate, security scans, deploy, live checks or monitoring) and reports it on the merge request or in an issue."
 
 components:
   - name: "triage"

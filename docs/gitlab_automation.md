@@ -92,10 +92,11 @@ The Gemini and Groq keys stay in Render; the pipeline does not need them.
 
 ### 5. Duo flows and triggers
 
-1. **AI > Flows > New flow**: paste `.gitlab/duo/flows/mr-safety-review.yml`, save, then enable it for the project.
-2. **AI > Triggers > New flow trigger**: event **Merge request**, action **Created**, flow "Second Look safety review". Add a second condition, **Assign reviewer**, to re-run it on demand.
-3. Repeat for `.gitlab/duo/flows/pipeline-triage.yml` with event **Pipeline events**, action **Failed**.
-4. Flows run on GitLab-hosted runners; if a flow stays queued, check **Settings > CI/CD > Runners**.
+1. Set your **Default GitLab Duo group** (**Preferences**) to the group that holds your Duo credits.
+2. **AI > Flows > New flow**: display name "Second Look safety review", a one-line description, visibility **Public**; under **Configuration**, choose **Flow** and paste `.gitlab/duo/flows/mr-safety-review.yml`. Select **Create flow**.
+3. Open the flow from the **Managed** tab and select **Enable**: pick the project and add the triggers **Merge request > Created** and **Assign reviewer** (to re-run it on demand).
+4. Repeat for `.gitlab/duo/flows/pipeline-triage.yml` ("Second Look pipeline triage") with the trigger **Pipeline events**, action **Failed**.
+5. Enabling a flow creates a service account (`ai-<flow>-<group>`). Mention it, or assign it as reviewer, to run the flow by hand.
 
 ### 6. See it work
 
