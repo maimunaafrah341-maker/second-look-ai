@@ -257,10 +257,6 @@ _THING = r"(?:message|sms|text|email|mail|sender|bank|company|offer|link|site|we
 _VERDICTS = [
     (re.compile(rf"\b{_STATE}{_INTENSIFIER}{_SAFE_WORD}"), "it vouches for the message"),
     (re.compile(r"\bsafe\s+(?:to|for)\b|\bsafely\b"), "it vouches for the message"),
-    (
-        re.compile(r"\b(?:safe|correct|right|sensible|wise)\s+(?:and\s+(?:safe|correct|right)\s+)?(?:thing|choice|option|step|move)\b"),
-        "it endorses doing what the message asks",
-    ),
     (re.compile(rf"\b(?:genuine|legitimate|legit|authentic|trustworthy)\s+{_THING}"), "it vouches for the message"),
     (
         re.compile(r"\byou\s+(?:can|may)\s+(?:safely\s+)?(?:trust|ignore|relax|proceed|go\s+ahead|click|open|pay|reply)\b"),
