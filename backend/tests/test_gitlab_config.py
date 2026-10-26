@@ -103,6 +103,14 @@ def test_monitoring_runs_only_on_a_schedule(pipeline):
     assert pipeline["monitor-production"]["rules"] == [{"if": '$CI_PIPELINE_SOURCE == "schedule"'}]
 
 
+def test_cache_keys_use_at_most_two_files(pipeline):
+    # GitLab rejects the whole pipeline when cache:key:files lists more than two files.
+    for name, job in pipeline.items():
+        if isinstance(job, dict) and isinstance(job.get("cache"), dict):
+            files = job["cache"].get("key", {}).get("files", [])
+            assert len(files) <= 2, name
+
+
 def test_no_secret_is_written_into_the_pipeline():
     text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 

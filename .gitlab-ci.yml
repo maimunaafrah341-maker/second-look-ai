@@ -47,7 +47,8 @@ default:
   image: $PYTHON_IMAGE
   cache:
     key:
-      files: [requirements.txt, requirements-ml.txt, requirements-dev.txt]
+      # GitLab allows at most two files here; requirements-dev.txt includes requirements.txt.
+      files: [requirements-dev.txt, requirements-ml.txt]
     paths: [.cache/pip]
   before_script:
     - pip install --quiet -r requirements-dev.txt
