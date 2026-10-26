@@ -9,12 +9,16 @@ It does not decide whether a message is a scam. It shows evidence and official a
 An optional AI agent can run the investigation for you. It chooses which checks to run, asks what has happened, and prepares a report you can copy. Its limits are enforced in code, so a scam message cannot talk it into calling anything safe.
 
 - **Live app:** https://second-look-ai-1.onrender.com
+- **Demo video (under 3 minutes):** https://youtu.be/XVTsWrDTm0I
+- **GitLab project:** https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43722820/showcase
+- **An unsafe change caught by the pipeline and the Duo agents:** [merge request !1](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43722820/showcase/-/merge_requests/1)
+- **Pipelines:** https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43722820/showcase/-/pipelines
 - **Backend health check:** https://second-look-ai.onrender.com/health
-- **Source:** https://github.com/maimunaafrah341-maker/second-look-ai
+- **Original source (GitHub):** https://github.com/maimunaafrah341-maker/second-look-ai
 
 The backend may be slow to answer the first request after it has been idle.
 
-Built for the ML Empowerment Build Challenge 3.0 and ForgeHacks (October 2026).
+Built for the ML Empowerment Build Challenge 3.0 and ForgeHacks (October 2026), then taken to production on GitLab for the GitLab Transcend "Life After Code" hackathon.
 
 ![Second Look home page](docs/screenshots/home-light.png)
 
@@ -92,10 +96,12 @@ Rules and a term map for Telugu, Urdu and Bengali exist in the repository but ar
 
 Every change goes through GitLab CI/CD and GitLab Duo Agent Platform before it reaches the people using the site:
 
-- **On every merge request:** 698 backend and 123 frontend tests, SAST, secret detection, dependency audits, and a **quality gate** that re-measures the AI agent's guardrail, guidance retrieval, warning signs and the classifier, and blocks the merge if any number gets worse.
+- **On every merge request:** more than 850 backend, ML and frontend tests, SAST, secret detection, dependency audits, and a **quality gate** that re-measures the AI agent's guardrail, guidance retrieval, warning signs and the classifier, and blocks the merge if any number gets worse.
 - **GitLab Duo flows:** a safety review of each merge request against the project's rules in [AGENTS.md](AGENTS.md), and a triage flow that diagnoses any failed pipeline and reports it on the merge request or in a `production-health` issue.
 - **On merge to main:** deploy to Render, wait until the backend serves the new commit, then run live checks that include a full AI agent run and confirm no verdict reached the user.
-- **On a schedule:** the same live checks, as monitoring.
+- **On a schedule:** the same live checks every 6 hours, as monitoring.
+
+**See it work:** [merge request !1](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43722820/showcase/-/merge_requests/1) deletes one rule from the agent's safety check under the title "allow friendlier summaries". The agent's own unit tests still pass, but the quality gate fails because the summary "Paying is the correct and safe thing to do." now gets through. The safety review flow marks the change Blocking, and the triage flow traces both failed jobs to the deleted rule and proposes the fix. Nothing is deployed. The [demo video](https://youtu.be/XVTsWrDTm0I) walks through it.
 
 Details, the before-and-after, and setup steps: [docs/gitlab_automation.md](docs/gitlab_automation.md).
 
